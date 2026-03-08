@@ -1,20 +1,27 @@
-# Xcode 用户数据（每个开发者本地配置，不应共享）
+# Xcode
 xcuserdata/
+*.xcworkspace
 *.xcodeproj/xcuserdata/
-*.xcworkspace/xcuserdata/
-
-# 衍生数据（编译中间文件）
 DerivedData/
 
-# 敏感配置文件（自定义，根据你的项目添加）
-Secrets.plist
-GoogleService-Info.plist
+# CocoaPods
+Pods/
+Podfile.lock
+
+# Swift Package Manager
+.build/
+Packages/
+
+# 敏感文件（根据实际情况修改）
 *.xcconfig
-.env
+GoogleService-Info.plist
+*Credentials.swift
+secrets.plist
 
-# 证书和描述文件
-*.p12
-*.mobileprovision
-
-# 其他
+# 系统文件
 .DS_Store
+*.log
+
+# 编译产物
+*.ipa
+*.dSYM.zip

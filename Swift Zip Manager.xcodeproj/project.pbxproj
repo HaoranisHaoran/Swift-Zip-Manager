@@ -13,7 +13,7 @@
 		AD12EED72F5AEC2500C0B791 /* Swift-Zip-ManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD12EED62F5AEC2500C0B791 /* Swift-Zip-ManagerTests.swift */; };
 		AD12EEE12F5AEC2500C0B791 /* Swift-Zip-ManagerUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD12EEE02F5AEC2500C0B791 /* Swift-Zip-ManagerUITests.swift */; };
 		AD12EEE32F5AEC2500C0B791 /* Swift-Zip-ManagerUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD12EEE22F5AEC2500C0B791 /* Swift-Zip-ManagerUITestsLaunchTests.swift */; };
-		AD52ECA42F5D7125000C83A4 /* Swift-Zip-ManagerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD52ECA32F5D7125000C83A4 /* Swift-Zip-ManagerApp.swift */; };
+		ADCA13DC2F5BE849000E5D59 /* Swift-Zip-ManagerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADCA13DB2F5BE849000E5D59 /* Swift-Zip-ManagerApp.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -45,7 +45,7 @@
 		AD12EEE02F5AEC2500C0B791 /* Swift-Zip-ManagerUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Swift-Zip-ManagerUITests.swift"; sourceTree = "<group>"; };
 		AD12EEE22F5AEC2500C0B791 /* Swift-Zip-ManagerUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Swift-Zip-ManagerUITestsLaunchTests.swift"; sourceTree = "<group>"; };
 		AD12EEF22F5B0E8300C0B791 /* Swift-Zip-Manager-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "Swift-Zip-Manager-Info.plist"; sourceTree = SOURCE_ROOT; };
-		AD52ECA32F5D7125000C83A4 /* Swift-Zip-ManagerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Swift-Zip-ManagerApp.swift"; sourceTree = "<group>"; };
+		ADCA13DB2F5BE849000E5D59 /* Swift-Zip-ManagerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Swift-Zip-ManagerApp.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -98,10 +98,10 @@
 			children = (
 				AD12EEF22F5B0E8300C0B791 /* Swift-Zip-Manager-Info.plist */,
 				AD12EEC62F5AEC2200C0B791 /* ContentView.swift */,
-				AD52ECA32F5D7125000C83A4 /* Swift-Zip-ManagerApp.swift */,
 				AD12EEC82F5AEC2400C0B791 /* Assets.xcassets */,
 				AD12EECD2F5AEC2400C0B791 /* Swift_Zip_Manager.entitlements */,
 				AD12EECA2F5AEC2400C0B791 /* Preview Content */,
+				ADCA13DB2F5BE849000E5D59 /* Swift-Zip-ManagerApp.swift */,
 			);
 			path = "Swift Zip Manager";
 			sourceTree = "<group>";
@@ -279,7 +279,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				AD12EEC72F5AEC2200C0B791 /* ContentView.swift in Sources */,
-				AD52ECA42F5D7125000C83A4 /* Swift-Zip-ManagerApp.swift in Sources */,
+				ADCA13DC2F5BE849000E5D59 /* Swift-Zip-ManagerApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -457,7 +457,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 12.3;
-				MARKETING_VERSION = 0.1.2;
+				MARKETING_VERSION = 0.1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.haoran.Swift-Zip-Manager";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -489,7 +489,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 12.3;
-				MARKETING_VERSION = 0.1.2;
+				MARKETING_VERSION = 0.1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.haoran.Swift-Zip-Manager";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;

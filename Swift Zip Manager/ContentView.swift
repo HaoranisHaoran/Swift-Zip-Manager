@@ -194,7 +194,7 @@ class ArchiveManager: ObservableObject {
             process.waitUntilExit()
 
             let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
-            let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
+            _ = errorPipe.fileHandleForReading.readDataToEndOfFile()
             let output = String(data: outputData, encoding: .utf8) ?? ""
 
             var fileEntries: [ArchiveEntry] = []

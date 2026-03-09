@@ -3,7 +3,13 @@ import UniformTypeIdentifiers
 
 // MARK: - 语言管理器
 class LanguageManager: ObservableObject {
-    @Published var currentLanguage: String
+    @Published var currentLanguage: String {
+        didSet {
+            UserDefaults.standard.set([currentLanguage], forKey: "AppleLanguages")
+            UserDefaults.standard.synchronize()
+            NotificationCenter.default.post(name: .languageChanged, object: nil)
+        }
+    }
     
     init() {
         if let languages = UserDefaults.standard.array(forKey: "AppleLanguages") as? [String],
@@ -15,41 +21,15 @@ class LanguageManager: ObservableObject {
     }
 }
 
-extension Notification.Name {
-    static let languageChanged = Notification.Name("languageChanged")
-}
-
-// MARK: - App Entry
-@main
-struct ZipManagerApp: App {
-    @StateObject private var appState = AppState()
-    @StateObject private var languageManager = LanguageManager()
-    
-    var body: some Scene {
-        WindowGroup {
-            ContentView()
-                .environmentObject(appState)
-                .environmentObject(languageManager)
-                .frame(minWidth: 700, minHeight: 450)
-        }
-        .commands {
-            CommandGroup(after: .newItem) {
-                Button("New Archive") { appState.showNewArchive = true }
-                    .keyboardShortcut("w", modifiers: .command)
-                Button("Open Archive") { appState.showOpenArchive = true }
-                    .keyboardShortcut("o", modifiers: .command)
-            }
-        }
-    }
-}
-
 // MARK: - App State
 class AppState: ObservableObject {
-    @Published var showNewArchive = false
-    @Published var showOpenArchive = false
-    @Published var showHelp = false
-    @Published var showSettings = false
-    @Published var showTools = false
+    enum ActiveSheet: Identifiable {
+        case newArchive, settings, tools
+        
+        var id: Int { hashValue }
+    }
+    
+    @Published var activeSheet: ActiveSheet?
     @Published var showCommandCopied = false
 }
 
@@ -79,10 +59,8 @@ class ArchiveManager: ObservableObject {
     @Published var error: String?
     @Published var showAlert = false
     
-    // 压缩格式列表（含 7z 和 rar）
     let formats = ["zip", "tar", "gz", "7z", "rar"]
     
-    // 获取格式对应的扩展名
     func getExtension(for format: String) -> String {
         switch format.lowercased() {
         case "zip": return "zip"
@@ -94,56 +72,28 @@ class ArchiveManager: ObservableObject {
         }
     }
     
-    // 增强的命令查找函数，搜索多个可能路径
     func findCommandPath(_ command: String) -> String? {
-        // 常见命令路径列表
         let commonPaths = [
             "/usr/local/bin/\(command)",
-            "/opt/homebrew/bin/\(command)",  // Apple Silicon Homebrew
+            "/opt/homebrew/bin/\(command)",
             "/usr/bin/\(command)",
             "/bin/\(command)",
             "/usr/sbin/\(command)",
             "/sbin/\(command)"
         ]
         
-        // 首先检查常见路径
         for path in commonPaths {
             if FileManager.default.fileExists(atPath: path) {
                 return path
             }
         }
-        
-        // 如果常见路径没有，尝试用 which 命令查找
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/which")
-        process.arguments = [command]
-        
-        let outputPipe = Pipe()
-        process.standardOutput = outputPipe
-        
-        do {
-            try process.run()
-            process.waitUntilExit()
-            if process.terminationStatus == 0 {
-                let data = outputPipe.fileHandleForReading.readDataToEndOfFile()
-                let path = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
-                if let path = path, !path.isEmpty, FileManager.default.fileExists(atPath: path) {
-                    return path
-                }
-            }
-        } catch {
-            print("which command failed: \(error)")
-        }
-        
         return nil
     }
     
-    // 检查命令是否存在（增强版）
     func checkCommand(_ command: String) -> Bool {
         return findCommandPath(command) != nil
     }
     
-    // 列出压缩包内容（支持多种格式）- 修复版，支持 RAR
     func listArchiveContents(_ url: URL) {
         file = url
         let ext = url.pathExtension.lowercased()
@@ -174,16 +124,12 @@ class ArchiveManager: ObservableObject {
             }
             
         case "rar":
-            // 优先使用 unrar
             if let unrarPath = findCommandPath("unrar") {
                 executablePath = unrarPath
                 arguments = ["lb", url.path]
-            } else if let lsarPath = findCommandPath("lsar") {
-                executablePath = lsarPath
-                arguments = [url.path]
             } else {
                 DispatchQueue.main.async {
-                    self.error = "Please install unrar or lsar to list RAR contents: brew install unar"
+                    self.error = "Please install unrar to list RAR contents: brew install unar"
                     self.showAlert = true
                 }
                 return
@@ -208,47 +154,29 @@ class ArchiveManager: ObservableObject {
         process.executableURL = URL(fileURLWithPath: execPath)
         process.arguments = arguments
         
-        // 设置环境变量
         var environment = ProcessInfo.processInfo.environment
         environment["PATH"] = "/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
         process.environment = environment
         
         let outputPipe = Pipe()
-        let errorPipe = Pipe()
         process.standardOutput = outputPipe
-        process.standardError = errorPipe
         
         do {
             try process.run()
             process.waitUntilExit()
             
             let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
-            let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
             let output = String(data: outputData, encoding: .utf8) ?? ""
-            let errorOutput = String(data: errorData, encoding: .utf8) ?? ""
-            
-            if !errorOutput.isEmpty {
-                print("List error: \(errorOutput)")
-            }
             
             var fileEntries: [ArchiveEntry] = []
             let lines = output.split(separator: "\n")
             
             for line in lines {
                 let trimmed = line.trimmingCharacters(in: .whitespaces)
-                if !trimmed.isEmpty && !trimmed.hasPrefix("Archive:") && !trimmed.hasPrefix("Path =") {
-                    // 根据不同格式解析文件名
-                    var fileName = trimmed
-                    if ext == "7z" || ext == "rar" {
-                        // 对于7z和rar，可能需要特殊处理
-                        let components = trimmed.split(separator: " ", maxSplits: 5)
-                        if components.count >= 6 {
-                            fileName = String(components[5])
-                        }
-                    }
+                if !trimmed.isEmpty && !trimmed.hasPrefix("Archive:") {
                     fileEntries.append(ArchiveEntry(
-                        name: fileName,
-                        path: fileName,
+                        name: trimmed,
+                        path: trimmed,
                         size: "--"
                     ))
                 }
@@ -270,9 +198,7 @@ class ArchiveManager: ObservableObject {
         }
     }
     
-    // 解压（支持所有格式）- 支持 RAR
     func extractSelected(to destination: URL) {
-        // 如果没有选中任何文件，默认解压所有
         let list = selectedIDs.isEmpty ? entries : entries.filter { selectedIDs.contains($0.id) }
         guard !list.isEmpty else {
             DispatchQueue.main.async {
@@ -298,7 +224,6 @@ class ArchiveManager: ObservableObject {
         
         DispatchQueue.global(qos: .userInitiated).async {
             do {
-                // 创建目标目录
                 try FileManager.default.createDirectory(at: target, withIntermediateDirectories: true)
                 
                 let process = Process()
@@ -310,18 +235,14 @@ class ArchiveManager: ObservableObject {
                     executablePath = "/usr/bin/unzip"
                     arguments = ["-o", source.path, "-d", target.path]
                     
-                case "tar":
+                case "tar", "gz", "tgz":
                     executablePath = "/usr/bin/tar"
                     arguments = ["-xf", source.path, "-C", target.path]
-                    
-                case "gz", "tgz":
-                    executablePath = "/usr/bin/tar"
-                    arguments = ["-xzf", source.path, "-C", target.path]
                     
                 case "7z":
                     if let sevenZipPath = self.findCommandPath("7z") {
                         executablePath = sevenZipPath
-                        arguments = ["x", source.path, "-o" + target.path, "-y"]  // -y 自动确认
+                        arguments = ["x", source.path, "-o" + target.path, "-y"]
                     } else {
                         DispatchQueue.main.async {
                             self.isProcessing = false
@@ -332,7 +253,6 @@ class ArchiveManager: ObservableObject {
                     }
                     
                 case "rar":
-                    // 优先使用 unar (更友好)
                     if let unarPath = self.findCommandPath("unar") {
                         executablePath = unarPath
                         arguments = ["-o", target.path, source.path]
@@ -369,57 +289,24 @@ class ArchiveManager: ObservableObject {
                 process.executableURL = URL(fileURLWithPath: execPath)
                 process.arguments = arguments
                 
-                // 设置环境变量
                 var environment = ProcessInfo.processInfo.environment
                 environment["PATH"] = "/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
                 process.environment = environment
                 
-                // 捕获输出
-                let outputPipe = Pipe()
-                let errorPipe = Pipe()
-                process.standardOutput = outputPipe
-                process.standardError = errorPipe
-                
-                print("Running: \(execPath) \(arguments.joined(separator: " "))")
-                
                 try process.run()
                 process.waitUntilExit()
-                
-                let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
-                let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
-                let output = String(data: outputData, encoding: .utf8) ?? ""
-                let errorOutput = String(data: errorData, encoding: .utf8) ?? ""
-                
-                if !output.isEmpty {
-                    print("Command output: \(output)")
-                }
-                if !errorOutput.isEmpty {
-                    print("Command error: \(errorOutput)")
-                }
                 
                 if process.terminationStatus == 0 {
                     DispatchQueue.main.async {
                         self.isProcessing = false
                         self.progress = 1.0
-                        
-                        // 获取解压后的文件列表
-                        var extractedFiles: [String] = []
-                        if let contents = try? FileManager.default.contentsOfDirectory(atPath: target.path) {
-                            extractedFiles = contents
-                        }
-                        
-                        if extractedFiles.isEmpty {
-                            self.error = "Extraction completed but no files found"
-                        } else {
-                            self.error = "Extraction complete: \(extractedFiles.count) file(s) extracted"
-                        }
+                        self.error = "Extraction complete"
                         self.showAlert = true
                     }
                 } else {
-                    let errorMsg = errorOutput.isEmpty ? "Unknown error (code: \(process.terminationStatus))" : errorOutput
                     DispatchQueue.main.async {
                         self.isProcessing = false
-                        self.error = "Extraction failed: \(errorMsg)"
+                        self.error = "Extraction failed"
                         self.showAlert = true
                     }
                 }
@@ -433,9 +320,7 @@ class ArchiveManager: ObservableObject {
         }
     }
     
-    // 压缩（支持所有格式）
     func createArchive(files: [URL], format: String, archiveName: String, destination: URL) {
-        // 检查必要命令
         if format == "rar" && !checkCommand("rar") {
             DispatchQueue.main.async {
                 self.error = "rar command not found. Please install rar: brew install rar"
@@ -456,27 +341,25 @@ class ArchiveManager: ObservableObject {
         
         DispatchQueue.global(qos: .userInitiated).async {
             do {
-                let process = Process()
-                var arguments: [String] = []
-                var executablePath: String?
                 let ext = self.getExtension(for: format)
                 let fileName = archiveName.hasSuffix(".\(ext)") ? archiveName : "\(archiveName).\(ext)"
                 let targetPath = destination.appendingPathComponent(fileName).path
                 
-                // 创建临时目录
                 let tempDir = FileManager.default.temporaryDirectory
                     .appendingPathComponent(UUID().uuidString)
                 try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
                 
-                // 复制文件到临时目录
                 for file in files {
                     let destPath = tempDir.appendingPathComponent(file.lastPathComponent)
                     try FileManager.default.copyItem(at: file, to: destPath)
                 }
                 
+                let process = Process()
+                var arguments: [String] = []
+                
                 switch format.lowercased() {
                 case "zip":
-                    executablePath = "/usr/bin/zip"
+                    process.executableURL = URL(fileURLWithPath: "/usr/bin/zip")
                     arguments = ["-r", targetPath]
                     let fileList = try FileManager.default.contentsOfDirectory(at: tempDir, includingPropertiesForKeys: nil)
                     for file in fileList {
@@ -485,18 +368,18 @@ class ArchiveManager: ObservableObject {
                     process.currentDirectoryURL = tempDir
                     
                 case "tar":
-                    executablePath = "/usr/bin/tar"
+                    process.executableURL = URL(fileURLWithPath: "/usr/bin/tar")
                     arguments = ["-cf", targetPath, "-C", tempDir.path, "."]
                     
                 case "gz":
-                    executablePath = "/usr/bin/tar"
+                    process.executableURL = URL(fileURLWithPath: "/usr/bin/tar")
                     arguments = ["-czf", targetPath, "-C", tempDir.path, "."]
                     
                 case "7z":
                     guard let sevenZipPath = self.findCommandPath("7z") else {
                         throw NSError(domain: "CommandNotFound", code: -1, userInfo: [NSLocalizedDescriptionKey: "7z command not found"])
                     }
-                    executablePath = sevenZipPath
+                    process.executableURL = URL(fileURLWithPath: sevenZipPath)
                     arguments = ["a", targetPath, "-r", "."]
                     process.currentDirectoryURL = tempDir
                     
@@ -504,57 +387,20 @@ class ArchiveManager: ObservableObject {
                     guard let rarPath = self.findCommandPath("rar") else {
                         throw NSError(domain: "CommandNotFound", code: -1, userInfo: [NSLocalizedDescriptionKey: "rar command not found"])
                     }
-                    executablePath = rarPath
+                    process.executableURL = URL(fileURLWithPath: rarPath)
                     arguments = ["a", "-r", targetPath, "."]
                     process.currentDirectoryURL = tempDir
                     
                 default:
-                    executablePath = "/usr/bin/zip"
-                    arguments = ["-r", targetPath]
-                    let fileList = try FileManager.default.contentsOfDirectory(at: tempDir, includingPropertiesForKeys: nil)
-                    for file in fileList {
-                        arguments.append(file.lastPathComponent)
-                    }
-                    process.currentDirectoryURL = tempDir
+                    break
                 }
                 
-                guard let execPath = executablePath else {
-                    throw NSError(domain: "CommandNotFound", code: -1, userInfo: [NSLocalizedDescriptionKey: "Could not find required command"])
-                }
-                
-                process.executableURL = URL(fileURLWithPath: execPath)
                 process.arguments = arguments
-                
-                // 设置环境变量
-                var environment = ProcessInfo.processInfo.environment
-                environment["PATH"] = "/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-                process.environment = environment
-                
-                // 捕获错误输出
-                let errorPipe = Pipe()
-                process.standardError = errorPipe
-                let outputPipe = Pipe()
-                process.standardOutput = outputPipe
-                
-                print("Running: \(execPath) \(arguments.joined(separator: " "))")
                 
                 try process.run()
                 process.waitUntilExit()
                 
-                // 清理临时目录
                 try? FileManager.default.removeItem(at: tempDir)
-                
-                let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
-                let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
-                let errorMsg = String(data: errorData, encoding: .utf8) ?? ""
-                let output = String(data: outputData, encoding: .utf8) ?? ""
-                
-                if !output.isEmpty {
-                    print("Command output: \(output)")
-                }
-                if !errorMsg.isEmpty {
-                    print("Command error: \(errorMsg)")
-                }
                 
                 if process.terminationStatus == 0 {
                     DispatchQueue.main.async {
@@ -564,10 +410,9 @@ class ArchiveManager: ObservableObject {
                         self.showAlert = true
                     }
                 } else {
-                    let errorMessage = errorMsg.isEmpty ? "Unknown error (code: \(process.terminationStatus))" : errorMsg
                     DispatchQueue.main.async {
                         self.isProcessing = false
-                        self.error = "Creation failed: \(errorMessage)"
+                        self.error = "Creation failed"
                         self.showAlert = true
                     }
                 }
@@ -586,6 +431,260 @@ class ArchiveManager: ObservableObject {
     }
 }
 
+// MARK: - 帮助条目模型
+struct HelpItem: Identifiable {
+    let id = UUID()
+    let title: String
+    let content: String
+    let keywords: [String]
+}
+
+// MARK: - 帮助视图（带搜索框）
+struct HelpView: View {
+    @Environment(\.dismiss) var dismiss
+    @State private var searchText = ""
+    @State private var selectedItem: UUID?
+    
+    let helpItems: [HelpItem] = [
+        HelpItem(
+            title: "📦 Open Archive",
+            content: """
+            Click 'Open Archive' or press ⌘O to open and view archive contents.
+            
+            Supported formats:
+            • ZIP - Standard compression format
+            • TAR - Tape Archive format
+            • GZ - Gzip compressed files
+            • 7Z - High compression ratio format (requires p7zip)
+            • RAR - Proprietary archive format (requires unar/rar)
+            """,
+            keywords: ["open", "archive", "zip", "tar", "gz", "7z", "rar", "load"]
+        ),
+        HelpItem(
+            title: "🆕 New Archive",
+            content: """
+            Click 'New Archive' or press ⌘W to create a new archive.
+            
+            Steps:
+            1. Add files or folders using the Add buttons
+            2. Enter a custom name for your archive
+            3. Choose the format: ZIP, TAR, GZ, 7Z, or RAR
+            4. Select a destination folder
+            5. Click Create to generate the archive
+            
+            Note: 7Z and RAR compression require additional tools.
+            """,
+            keywords: ["new", "create", "compress", "zip", "tar", "gz", "7z", "rar"]
+        ),
+        HelpItem(
+            title: "📤 Extract",
+            content: """
+            Select files in the list, then click 'Extract' to extract them.
+            
+            • Select single files by clicking
+            • Select multiple files by holding ⌘ while clicking
+            • Select all files with ⌘A
+            • If no files are selected, all files will be extracted
+            
+            The extracted files will be placed in a folder named after the archive.
+            """,
+            keywords: ["extract", "unzip", "untar", "decompress", "unarchive"]
+        ),
+        HelpItem(
+            title: "⚙️ Settings",
+            content: """
+            Access settings by clicking the 'Settings' button at the bottom.
+            
+            Language:
+            • Choose your preferred display language
+            • The app needs to restart to apply language changes
+            
+            Tools:
+            • Install required tools for 7Z and RAR support
+            • Click 'Install Required Tools' to view installation commands
+            """,
+            keywords: ["settings", "language", "preferences", "tools", "install"]
+        ),
+        HelpItem(
+            title: "🛠️ Tool Installation",
+            content: """
+            To enable full 7Z and RAR support, install the following tools using Homebrew:
+            
+            1. Install Homebrew (if not already installed):
+               /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+            
+            2. Install 7z support:
+               brew install p7zip
+            
+            3. Install RAR support:
+               brew install unar  (for extraction)
+               brew install rar   (for compression)
+            
+            After installation, restart the app for changes to take effect.
+            """,
+            keywords: ["install", "tools", "homebrew", "7z", "rar", "p7zip", "unar"]
+        ),
+        HelpItem(
+            title: "🌐 Language",
+            content: """
+            Changing the language:
+            
+            1. Go to Settings
+            2. Select your preferred language from the dropdown
+            3. Click OK
+            4. Restart the app when prompted
+            
+            The app supports multiple languages including English, Chinese, Spanish, French, German, Japanese, Korean, and more.
+            """,
+            keywords: ["language", "translate", "localization", "international"]
+        ),
+        HelpItem(
+            title: "⌨️ Keyboard Shortcuts",
+            content: """
+            Available keyboard shortcuts:
+            
+            • ⌘O - Open Archive
+            • ⌘W - New Archive
+            • ⌘? - Open Help
+            • ⌘A - Select all files in list
+            • ⌘D - Deselect all files
+            • ⌘, - Open Settings (if available)
+            
+            In dialogs, press ⏎ (Enter) to confirm or ⎋ (Escape) to cancel.
+            """,
+            keywords: ["shortcut", "keyboard", "hotkey", "⌘", "command"]
+        )
+    ]
+    
+    var filteredItems: [HelpItem] {
+        if searchText.isEmpty {
+            return helpItems
+        } else {
+            return helpItems.filter { item in
+                item.title.localizedCaseInsensitiveContains(searchText) ||
+                item.content.localizedCaseInsensitiveContains(searchText) ||
+                item.keywords.contains { $0.localizedCaseInsensitiveContains(searchText) }
+            }
+        }
+    }
+    
+    var body: some View {
+        HSplitView {
+            // 左侧导航栏
+            VStack(alignment: .leading, spacing: 0) {
+                Text("Topics")
+                    .font(.headline)
+                    .padding(.horizontal)
+                    .padding(.top, 12)
+                    .padding(.bottom, 8)
+                
+                List(helpItems) { item in
+                    HStack {
+                        Text(item.title)
+                            .lineLimit(1)
+                        Spacer()
+                    }
+                    .padding(.vertical, 4)
+                    .padding(.horizontal, 8)
+                    .background(selectedItem == item.id ? Color.accentColor.opacity(0.2) : Color.clear)
+                    .cornerRadius(4)
+                    .onTapGesture {
+                        selectedItem = item.id
+                    }
+                }
+                .listStyle(PlainListStyle())
+            }
+            .frame(minWidth: 180, maxWidth: 250)
+            
+            // 右侧内容区域
+            VStack(alignment: .leading, spacing: 0) {
+                // 搜索栏
+                HStack {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundColor(.secondary)
+                        .font(.system(size: 14))
+                    
+                    TextField("Search", text: $searchText)
+                        .textFieldStyle(PlainTextFieldStyle())
+                        .font(.system(size: 14))
+                    
+                    if !searchText.isEmpty {
+                        Button(action: { searchText = "" }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.secondary)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+                }
+                .padding(8)
+                .background(Color(NSColor.controlBackgroundColor))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
+                )
+                .padding()
+                
+                Divider()
+                
+                // 内容显示
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 20) {
+                        if filteredItems.isEmpty {
+                            VStack(spacing: 10) {
+                                Image(systemName: "magnifyingglass")
+                                    .font(.system(size: 40))
+                                    .foregroundColor(.secondary)
+                                Text("No results found")
+                                    .font(.headline)
+                                Text("Try different keywords")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(40)
+                        } else {
+                            ForEach(filteredItems) { item in
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text(item.title)
+                                        .font(.title2)
+                                        .bold()
+                                    
+                                    Text(item.content)
+                                        .font(.body)
+                                        .lineSpacing(4)
+                                }
+                                .padding()
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Color(NSColor.controlBackgroundColor))
+                                .cornerRadius(8)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(Color.secondary.opacity(0.1), lineWidth: 1)
+                                )
+                                .padding(.horizontal)
+                            }
+                        }
+                    }
+                    .padding(.vertical)
+                }
+                
+                Divider()
+                
+                // 底部按钮
+                HStack {
+                    Spacer()
+                    Button("Close") {
+                        dismiss()
+                    }
+                    .keyboardShortcut(.defaultAction)
+                    .padding()
+                }
+            }
+        }
+        .frame(width: 800, height: 550)
+    }
+}
+
 // MARK: - Content View
 struct ContentView: View {
     @EnvironmentObject var appState: AppState
@@ -594,6 +693,7 @@ struct ContentView: View {
     @State private var selectedLanguage = "en"
     @State private var showRestartAlert = false
     @State private var copyMessage = ""
+    @State private var showOpenPanel = false
     
     let languages = [
         "en": "English",
@@ -618,12 +718,12 @@ struct ContentView: View {
                 // Empty state
                 VStack(spacing: 20) {
                     Button("Open Archive") {
-                        openArchive()
+                        showOpenPanel = true
                     }
                     .buttonStyle(.borderedProminent)
                     
                     Button("New Archive") {
-                        appState.showNewArchive = true
+                        appState.activeSheet = .newArchive
                     }
                     .buttonStyle(.bordered)
                 }
@@ -634,12 +734,12 @@ struct ContentView: View {
                     // Toolbar
                     HStack {
                         Button("Open") {
-                            openArchive()
+                            showOpenPanel = true
                         }
                         .buttonStyle(.bordered)
                         
                         Button("New") {
-                            appState.showNewArchive = true
+                            appState.activeSheet = .newArchive
                         }
                         .buttonStyle(.bordered)
                         
@@ -684,14 +784,10 @@ struct ContentView: View {
             HStack {
                 Spacer()
                 Button("Settings") {
-                    appState.showSettings = true
+                    appState.activeSheet = .settings
                 }
                 .buttonStyle(.bordered)
                 
-                Button("Help") {
-                    appState.showHelp = true
-                }
-                .buttonStyle(.bordered)
                 Spacer()
             }
             .padding(.bottom, 10)
@@ -714,41 +810,36 @@ struct ContentView: View {
         } message: {
             Text("The app needs to restart to apply the new language.")
         }
-        .sheet(isPresented: $appState.showNewArchive) {
-            NewArchiveView(manager: manager)
-        }
-        .sheet(isPresented: $appState.showSettings) {
-            SettingsView(selectedLanguage: $selectedLanguage, languages: languages, showRestartAlert: $showRestartAlert, appState: appState, copyMessage: $copyMessage)
+        .sheet(item: $appState.activeSheet) { sheet in
+            switch sheet {
+            case .newArchive:
+                NewArchiveView(manager: manager)
+            case .settings:
+                SettingsView(
+                    selectedLanguage: $selectedLanguage,
+                    languages: languages,
+                    showRestartAlert: $showRestartAlert,
+                    appState: appState,
+                    copyMessage: $copyMessage
+                )
                 .environmentObject(languageManager)
-        }
-        .sheet(isPresented: $appState.showTools) {
-            ToolsView(appState: appState, copyMessage: $copyMessage)
-        }
-        .sheet(isPresented: $appState.showHelp) {
-            HelpView()
-        }
-    }
-    
-    func openArchive() {
-        let panel = NSOpenPanel()
-        // 添加所有支持的格式
-        panel.allowedContentTypes = [
-            UTType(filenameExtension: "zip") ?? .zip,
-            UTType(filenameExtension: "tar") ?? .archive,
-            UTType(filenameExtension: "gz") ?? .archive,
-            UTType(filenameExtension: "tgz") ?? .archive,
-            UTType(filenameExtension: "7z") ?? .archive,
-            UTType(filenameExtension: "rar") ?? .archive
-        ]
-        panel.allowsMultipleSelection = false
-        panel.canChooseDirectories = false
-        panel.canChooseFiles = true
-        panel.title = "Select an archive file"
-        
-        panel.begin { response in
-            if response == .OK, let url = panel.url {
-                manager.listArchiveContents(url)
+            case .tools:
+                ToolsView(appState: appState, copyMessage: $copyMessage)
             }
+        }
+        .fileImporter(
+            isPresented: $showOpenPanel,
+            allowedContentTypes: [.zip, .archive]
+        ) { result in
+            switch result {
+            case .success(let url):
+                manager.listArchiveContents(url)
+            case .failure:
+                break
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .showOpenPanel)) { _ in
+            showOpenPanel = true
         }
     }
     
@@ -816,14 +907,13 @@ struct SettingsView: View {
                             languageManager.currentLanguage = newLanguage
                             selectedLanguage = newLanguage
                             showRestartAlert = true
-                            dismiss()
                         }
                     }
                 }
                 
                 Section("Tools") {
                     Button("Install Required Tools") {
-                        appState.showTools = true
+                        appState.activeSheet = .tools
                     }
                     .buttonStyle(.bordered)
                 }
@@ -917,10 +1007,6 @@ struct ToolsView: View {
                             }
                             .buttonStyle(.bordered)
                         }
-                        
-                        Text("After installation, 7z will be available in your PATH")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
                     }
                     
                     Divider()
@@ -1153,86 +1239,5 @@ struct NewArchiveView: View {
         let formatter = ByteCountFormatter()
         formatter.countStyle = .file
         return formatter.string(fromByteCount: size)
-    }
-}
-
-// MARK: - Help Components
-struct HelpSection: View {
-    let title: String
-    let content: [String]
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text(title)
-                .font(.headline)
-                .padding(.top, 5)
-            
-            ForEach(content, id: \.self) { line in
-                Text(line)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .padding(.leading)
-            }
-        }
-    }
-}
-
-// MARK: - Help View
-struct HelpView: View {
-    @Environment(\.dismiss) var dismiss
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 15) {
-            Text("Help")
-                .font(.largeTitle)
-                .bold()
-                .padding(.bottom, 10)
-            
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    HelpSection(title: "📦 Open Archive", content: [
-                        "Click 'Open Archive' or press ⌘O to open and view archive contents",
-                        "Supported formats: ZIP, TAR, GZ, 7Z, RAR"
-                    ])
-                    
-                    HelpSection(title: "🆕 New Archive", content: [
-                        "Click 'New Archive' or press ⌘W to create a new archive",
-                        "• Add files/folders to compress",
-                        "• Enter custom archive name",
-                        "• Choose format: ZIP, TAR, GZ, 7Z, RAR",
-                        "• Select destination folder"
-                    ])
-                    
-                    HelpSection(title: "📤 Extract", content: [
-                        "Select files in the list, then click 'Extract' to extract them",
-                        "• Supports: ZIP, TAR, GZ, 7Z, RAR"
-                    ])
-                    
-                    HelpSection(title: "⚙️ Settings", content: [
-                        "• Change language",
-                        "• Install required tools (7z, RAR) via Tools button"
-                    ])
-                    
-                    HelpSection(title: "🌐 Language", content: [
-                        "After changing language, the app needs to restart to apply"
-                    ])
-                }
-                .padding(.horizontal, 5)
-            }
-            
-            Divider()
-            
-            HStack {
-                Spacer()
-                Button("Close") {
-                    dismiss()
-                }
-                .buttonStyle(.borderedProminent)
-                .keyboardShortcut(.defaultAction)
-                .padding(.top, 10)
-            }
-        }
-        .padding()
-        .frame(width: 500, height: 550)
     }
 }

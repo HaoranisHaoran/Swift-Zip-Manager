@@ -21,6 +21,22 @@ class LanguageManager: ObservableObject {
     }
 }
 
+// MARK: - 最近文件模型
+struct RecentFile: Identifiable, Codable {
+    var id = UUID()
+    let url: URL
+    let lastOpened: Date
+    let name: String
+    let path: String
+    
+    init(url: URL) {
+        self.url = url
+        self.lastOpened = Date()
+        self.name = url.lastPathComponent
+        self.path = url.path
+    }
+}
+
 // MARK: - App State
 class AppState: ObservableObject {
     enum ActiveSheet: Identifiable {
@@ -39,6 +55,25 @@ struct ArchiveEntry: Identifiable, Hashable {
     let name: String
     let path: String
     let size: String
+    let isFolder: Bool
+    let modificationDate: Date?
+    let isSystemFile: Bool
+    
+    init(name: String, path: String, size: String, isFolder: Bool = false, modificationDate: Date? = nil) {
+        self.name = name
+        self.path = path
+        self.size = size
+        self.isFolder = isFolder
+        self.modificationDate = modificationDate
+        
+        // 检测系统文件
+        let lowercasedName = name.lowercased()
+        self.isSystemFile = lowercasedName == ".ds_store" ||
+                           lowercasedName == "thumbs.db" ||
+                           lowercasedName == "desktop.ini" ||
+                           name.hasPrefix("._") ||
+                           name.contains("__MACOSX")
+    }
     
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)
@@ -46,6 +81,56 @@ struct ArchiveEntry: Identifiable, Hashable {
     
     static func == (lhs: ArchiveEntry, rhs: ArchiveEntry) -> Bool {
         lhs.id == rhs.id
+    }
+}
+
+// MARK: - 最近文件管理器
+class RecentFilesManager: ObservableObject {
+    @Published var recentFiles: [RecentFile] = []
+    private let maxRecentFiles = 10
+    private let userDefaultsKey = "RecentFiles"
+    
+    init() {
+        loadRecentFiles()
+    }
+    
+    func addRecentFile(url: URL) {
+        // 移除已存在的相同文件
+        recentFiles.removeAll { $0.url.path == url.path }
+        
+        // 添加新文件
+        let newFile = RecentFile(url: url)
+        recentFiles.insert(newFile, at: 0)
+        
+        // 限制数量
+        if recentFiles.count > maxRecentFiles {
+            recentFiles = Array(recentFiles.prefix(maxRecentFiles))
+        }
+        
+        saveRecentFiles()
+    }
+    
+    func removeRecentFile(at indexSet: IndexSet) {
+        recentFiles.remove(atOffsets: indexSet)
+        saveRecentFiles()
+    }
+    
+    func clearAll() {
+        recentFiles.removeAll()
+        saveRecentFiles()
+    }
+    
+    private func loadRecentFiles() {
+        guard let data = UserDefaults.standard.data(forKey: userDefaultsKey),
+              let files = try? JSONDecoder().decode([RecentFile].self, from: data) else {
+            return
+        }
+        recentFiles = files
+    }
+    
+    private func saveRecentFiles() {
+        guard let data = try? JSONEncoder().encode(recentFiles) else { return }
+        UserDefaults.standard.set(data, forKey: userDefaultsKey)
     }
 }
 
@@ -58,6 +143,19 @@ class ArchiveManager: ObservableObject {
     @Published var progress: Double = 0
     @Published var error: String?
     @Published var showAlert = false
+    @Published var archiveInfo: ArchiveInfo?
+    @Published var isDragging = false
+    
+    struct ArchiveInfo {
+        let path: String
+        let size: Int64
+        let itemCount: Int
+        let folderCount: Int
+        let fileCount: Int
+        let systemFileCount: Int
+        let created: Date?
+        let modified: Date?
+    }
     
     let formats = ["zip", "tar", "gz", "7z", "rar"]
     
@@ -94,9 +192,12 @@ class ArchiveManager: ObservableObject {
         return findCommandPath(command) != nil
     }
     
-    func listArchiveContents(_ url: URL) {
+    func listArchiveContents(_ url: URL, recentFilesManager: RecentFilesManager? = nil) {
         file = url
         let ext = url.pathExtension.lowercased()
+        
+        // 添加到最近文件
+        recentFilesManager?.addRecentFile(url: url)
         
         let process = Process()
         var arguments: [String] = []
@@ -169,17 +270,57 @@ class ArchiveManager: ObservableObject {
             let output = String(data: outputData, encoding: .utf8) ?? ""
             
             var fileEntries: [ArchiveEntry] = []
+            var folderCount = 0
+            var fileCount = 0
+            var systemFileCount = 0
+            
             let lines = output.split(separator: "\n")
             
             for line in lines {
                 let trimmed = line.trimmingCharacters(in: .whitespaces)
                 if !trimmed.isEmpty && !trimmed.hasPrefix("Archive:") {
-                    fileEntries.append(ArchiveEntry(
+                    // 判断是否为文件夹
+                    let isFolder = trimmed.hasSuffix("/") || trimmed.hasSuffix("\\")
+                    
+                    let entry = ArchiveEntry(
                         name: trimmed,
                         path: trimmed,
-                        size: "--"
-                    ))
+                        size: "--",
+                        isFolder: isFolder,
+                        modificationDate: nil
+                    )
+                    
+                    if entry.isSystemFile {
+                        systemFileCount += 1
+                        // 可以选择是否显示系统文件，这里我们显示但标记为系统文件
+                    }
+                    
+                    if isFolder {
+                        folderCount += 1
+                    } else {
+                        fileCount += 1
+                    }
+                    
+                    fileEntries.append(entry)
                 }
+            }
+            
+            // 获取文件信息
+            if let attributes = try? FileManager.default.attributesOfItem(atPath: url.path) {
+                let fileSize = attributes[.size] as? Int64 ?? 0
+                let created = attributes[.creationDate] as? Date
+                let modified = attributes[.modificationDate] as? Date
+                
+                self.archiveInfo = ArchiveInfo(
+                    path: url.path,
+                    size: fileSize,
+                    itemCount: fileEntries.count,
+                    folderCount: folderCount,
+                    fileCount: fileCount,
+                    systemFileCount: systemFileCount,
+                    created: created,
+                    modified: modified
+                )
             }
             
             DispatchQueue.main.async {
@@ -426,8 +567,211 @@ class ArchiveManager: ObservableObject {
         }
     }
     
+    // 添加文件到现有归档（拖拽或右键菜单）
+    func addFilesToArchive(files: [URL]) {
+        guard let archiveURL = file else { return }
+        let format = archiveURL.pathExtension.lowercased()
+        
+        isProcessing = true
+        progress = 0
+        
+        DispatchQueue.global(qos: .userInitiated).async {
+            do {
+                let process = Process()
+                var arguments: [String] = []
+                
+                // 创建临时目录来准备文件
+                let tempDir = FileManager.default.temporaryDirectory
+                    .appendingPathComponent(UUID().uuidString)
+                try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+                
+                // 复制要添加的文件到临时目录
+                for file in files {
+                    let destPath = tempDir.appendingPathComponent(file.lastPathComponent)
+                    try FileManager.default.copyItem(at: file, to: destPath)
+                }
+                
+                switch format.lowercased() {
+                case "zip":
+                    process.executableURL = URL(fileURLWithPath: "/usr/bin/zip")
+                    arguments = ["-r", archiveURL.path]
+                    let fileList = try FileManager.default.contentsOfDirectory(at: tempDir, includingPropertiesForKeys: nil)
+                    for file in fileList {
+                        arguments.append(file.lastPathComponent)
+                    }
+                    process.currentDirectoryURL = tempDir
+                    
+                case "7z":
+                    guard let sevenZipPath = self.findCommandPath("7z") else {
+                        throw NSError(domain: "CommandNotFound", code: -1, userInfo: [NSLocalizedDescriptionKey: "7z command not found"])
+                    }
+                    process.executableURL = URL(fileURLWithPath: sevenZipPath)
+                    arguments = ["a", archiveURL.path, "-r", "."]
+                    process.currentDirectoryURL = tempDir
+                    
+                case "rar":
+                    guard let rarPath = self.findCommandPath("rar") else {
+                        throw NSError(domain: "CommandNotFound", code: -1, userInfo: [NSLocalizedDescriptionKey: "rar command not found"])
+                    }
+                    process.executableURL = URL(fileURLWithPath: rarPath)
+                    arguments = ["a", archiveURL.path, "-r", "."]
+                    process.currentDirectoryURL = tempDir
+                    
+                default:
+                    DispatchQueue.main.async {
+                        self.isProcessing = false
+                        self.error = "Adding files to \(format) archives is not supported"
+                        self.showAlert = true
+                    }
+                    return
+                }
+                
+                process.arguments = arguments
+                
+                try process.run()
+                process.waitUntilExit()
+                
+                try? FileManager.default.removeItem(at: tempDir)
+                
+                if process.terminationStatus == 0 {
+                    DispatchQueue.main.async {
+                        self.isProcessing = false
+                        self.progress = 1.0
+                        self.error = "Files added to archive successfully"
+                        self.showAlert = true
+                        // 重新加载归档内容
+                        self.listArchiveContents(archiveURL)
+                    }
+                } else {
+                    DispatchQueue.main.async {
+                        self.isProcessing = false
+                        self.error = "Failed to add files"
+                        self.showAlert = true
+                    }
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    self.isProcessing = false
+                    self.error = "Failed to add files: \(error.localizedDescription)"
+                    self.showAlert = true
+                }
+            }
+        }
+    }
+    
+    // 从归档中删除文件
+    func removeFilesFromArchive(fileNames: [String]) {
+        guard let archiveURL = file else { return }
+        let format = archiveURL.pathExtension.lowercased()
+        
+        isProcessing = true
+        progress = 0
+        
+        DispatchQueue.global(qos: .userInitiated).async {
+            do {
+                let process = Process()
+                var arguments: [String] = []
+                
+                switch format.lowercased() {
+                case "zip":
+                    process.executableURL = URL(fileURLWithPath: "/usr/bin/zip")
+                    arguments = ["-d", archiveURL.path]
+                    arguments.append(contentsOf: fileNames)
+                    
+                case "7z":
+                    guard let sevenZipPath = self.findCommandPath("7z") else {
+                        throw NSError(domain: "CommandNotFound", code: -1, userInfo: [NSLocalizedDescriptionKey: "7z command not found"])
+                    }
+                    process.executableURL = URL(fileURLWithPath: sevenZipPath)
+                    arguments = ["d", archiveURL.path]
+                    arguments.append(contentsOf: fileNames)
+                    
+                case "rar":
+                    guard let rarPath = self.findCommandPath("rar") else {
+                        throw NSError(domain: "CommandNotFound", code: -1, userInfo: [NSLocalizedDescriptionKey: "rar command not found"])
+                    }
+                    process.executableURL = URL(fileURLWithPath: rarPath)
+                    arguments = ["d", archiveURL.path]
+                    arguments.append(contentsOf: fileNames)
+                    
+                default:
+                    DispatchQueue.main.async {
+                        self.isProcessing = false
+                        self.error = "Deleting files from \(format) archives is not supported"
+                        self.showAlert = true
+                    }
+                    return
+                }
+                
+                process.arguments = arguments
+                
+                try process.run()
+                process.waitUntilExit()
+                
+                if process.terminationStatus == 0 {
+                    DispatchQueue.main.async {
+                        self.isProcessing = false
+                        self.progress = 1.0
+                        self.error = "Files removed from archive successfully"
+                        self.showAlert = true
+                        // 重新加载归档内容
+                        self.listArchiveContents(archiveURL)
+                    }
+                } else {
+                    DispatchQueue.main.async {
+                        self.isProcessing = false
+                        self.error = "Failed to remove files"
+                        self.showAlert = true
+                    }
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    self.isProcessing = false
+                    self.error = "Failed to remove files: \(error.localizedDescription)"
+                    self.showAlert = true
+                }
+            }
+        }
+    }
+    
     func format(_ size: Int64) -> String {
         ByteCountFormatter.string(fromByteCount: size, countStyle: .file)
+    }
+}
+
+// MARK: - 毛玻璃效果修饰器
+struct GlassBackground: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .background(
+                VisualEffectView(material: .sidebar, blendingMode: .behindWindow)
+                    .edgesIgnoringSafeArea(.all)
+            )
+    }
+}
+
+// NSVisualEffectView 包装器
+struct VisualEffectView: NSViewRepresentable {
+    let material: NSVisualEffectView.Material
+    let blendingMode: NSVisualEffectView.BlendingMode
+    
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let visualEffectView = NSVisualEffectView()
+        visualEffectView.material = material
+        visualEffectView.blendingMode = blendingMode
+        visualEffectView.state = .active
+        return visualEffectView
+    }
+    
+    func updateNSView(_ visualEffectView: NSVisualEffectView, context: Context) {
+        visualEffectView.material = material
+        visualEffectView.blendingMode = blendingMode
+    }
+}
+
+extension View {
+    func glassBackground() -> some View {
+        self.modifier(GlassBackground())
     }
 }
 
@@ -489,6 +833,34 @@ struct HelpView: View {
             The extracted files will be placed in a folder named after the archive.
             """,
             keywords: ["extract", "unzip", "untar", "decompress", "unarchive"]
+        ),
+        HelpItem(
+            title: "✏️ Modify Archive",
+            content: """
+            After opening an archive, you can modify it by:
+            
+            • Adding files: Drag and drop files directly onto the archive window
+            • Adding files: Right-click and select 'Add Files...'
+            • Deleting files: Select files, right-click and choose 'Delete'
+            
+            Note: Modification support depends on the archive format.
+            ZIP, 7Z, and RAR formats support adding/deleting files.
+            TAR/GZ formats have limited modification support.
+            
+            System files (like .DS_Store, __MACOSX) are automatically filtered.
+            """,
+            keywords: ["modify", "add", "delete", "update", "edit", "drag", "drop"]
+        ),
+        HelpItem(
+            title: "🕒 Recent Files",
+            content: """
+            The left sidebar shows your recently opened archives.
+            
+            • Click on any recent file to quickly reopen it
+            • Right-click or swipe to remove items from the list
+            • Click 'Clear All' to remove all recent files
+            """,
+            keywords: ["recent", "history", "previous", "quick"]
         ),
         HelpItem(
             title: "⚙️ Settings",
@@ -690,10 +1062,13 @@ struct ContentView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var languageManager: LanguageManager
     @StateObject private var manager = ArchiveManager()
+    @StateObject private var recentFilesManager = RecentFilesManager()
     @State private var selectedLanguage = "en"
     @State private var showRestartAlert = false
     @State private var copyMessage = ""
     @State private var showOpenPanel = false
+    @State private var selectedRecentFile: RecentFile?
+    @State private var isTargeted = false
     
     let languages = [
         "en": "English",
@@ -713,86 +1088,233 @@ struct ContentView: View {
     ]
     
     var body: some View {
-        VStack {
-            if manager.file == nil {
-                // Empty state
-                VStack(spacing: 20) {
-                    Button("Open Archive") {
-                        showOpenPanel = true
+        HSplitView {
+            // 左侧最近文件列表 - 带毛玻璃效果
+            VStack(alignment: .leading, spacing: 0) {
+                Text("Recent Files")
+                    .font(.headline)
+                    .padding(.horizontal)
+                    .padding(.top, 12)
+                    .padding(.bottom, 8)
+                
+                if recentFilesManager.recentFiles.isEmpty {
+                    VStack {
+                        Image(systemName: "clock.arrow.circlepath")
+                            .font(.system(size: 30))
+                            .foregroundColor(.secondary)
+                            .padding(.bottom, 5)
+                        Text("No recent files")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
-                    .buttonStyle(.borderedProminent)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    List(recentFilesManager.recentFiles) { recentFile in
+                        HStack {
+                            Image(systemName: "doc.zipper")
+                                .foregroundColor(.blue)
+                            VStack(alignment: .leading) {
+                                Text(recentFile.name)
+                                    .lineLimit(1)
+                                Text(recentFile.path)
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                                    .lineLimit(1)
+                            }
+                            Spacer()
+                        }
+                        .padding(.vertical, 4)
+                        .background(selectedRecentFile?.id == recentFile.id ? Color.accentColor.opacity(0.2) : Color.clear)
+                        .cornerRadius(4)
+                        .onTapGesture {
+                            selectedRecentFile = recentFile
+                            manager.listArchiveContents(recentFile.url, recentFilesManager: recentFilesManager)
+                        }
+                        .contextMenu {
+                            Button("Remove from Recent") {
+                                if let index = recentFilesManager.recentFiles.firstIndex(where: { $0.id == recentFile.id }) {
+                                    recentFilesManager.recentFiles.remove(at: index)
+                                }
+                            }
+                        }
+                    }
+                    .listStyle(PlainListStyle())
                     
-                    Button("New Archive") {
-                        appState.activeSheet = .newArchive
-                    }
-                    .buttonStyle(.bordered)
-                }
-                .frame(maxHeight: .infinity)
-            } else {
-                // Main view
-                VStack(spacing: 0) {
-                    // Toolbar
                     HStack {
-                        Button("Open") {
+                        Button("Clear All") {
+                            recentFilesManager.clearAll()
+                        }
+                        .font(.caption)
+                        .buttonStyle(.borderless)
+                        .disabled(recentFilesManager.recentFiles.isEmpty)
+                        
+                        Spacer()
+                    }
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
+                }
+            }
+            .frame(minWidth: 200, maxWidth: 250)
+            .glassBackground() // 应用毛玻璃效果
+            
+            // 右侧主内容 - 带拖拽区域
+            VStack {
+                if manager.file == nil {
+                    // Empty state
+                    VStack(spacing: 20) {
+                        Button("Open Archive") {
                             showOpenPanel = true
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(.borderedProminent)
                         
-                        Button("New") {
+                        Button("New Archive") {
                             appState.activeSheet = .newArchive
                         }
                         .buttonStyle(.bordered)
                         
-                        Button("Extract") {
-                            selectFolder()
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(manager.entries.isEmpty)
-                        
-                        if manager.isProcessing {
-                            ProgressView(value: manager.progress)
-                                .frame(width: 80)
-                            Text("\(Int(manager.progress * 100))%")
-                                .font(.caption)
-                        }
-                        
-                        Spacer()
+                        Text("Or drag and drop an archive here")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
+                    .frame(maxHeight: .infinity)
+                    .frame(maxWidth: .infinity)
+                    .background(isTargeted ? Color.blue.opacity(0.1) : Color.clear)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(isTargeted ? Color.blue : Color.gray.opacity(0.3), style: StrokeStyle(lineWidth: 2, dash: [5]))
+                    )
                     .padding()
-                    
-                    Divider()
-                    
-                    // File list with selection
-                    List(selection: $manager.selectedIDs) {
-                        ForEach(manager.entries) { entry in
+                    .onDrop(of: [.fileURL], isTargeted: $isTargeted) { providers in
+                        handleDrop(providers: providers)
+                        return true
+                    }
+                } else {
+                    // Main view
+                    VStack(spacing: 0) {
+                        // 归档信息栏
+                        if let info = manager.archiveInfo {
                             HStack {
-                                Image(systemName: "doc")
-                                Text(entry.name)
-                                Spacer()
-                                Text(entry.size)
+                                Image(systemName: "info.circle")
+                                    .foregroundColor(.blue)
+                                Text("\(info.itemCount) items (\(info.fileCount) files, \(info.folderCount) folders)")
                                     .font(.caption)
-                                    .foregroundColor(.secondary)
+                                if info.systemFileCount > 0 {
+                                    Text("•")
+                                        .font(.caption)
+                                    Text("\(info.systemFileCount) system files hidden")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                                Text("•")
+                                    .font(.caption)
+                                Text(formatFileSize(info.size))
+                                    .font(.caption)
+                                Spacer()
                             }
-                            .tag(entry.id)
+                            .padding(.horizontal)
+                            .padding(.vertical, 8)
+                            .background(Color(NSColor.controlBackgroundColor))
+                        }
+                        
+                        Divider()
+                        
+                        // Toolbar
+                        HStack {
+                            Button("Open") {
+                                showOpenPanel = true
+                            }
+                            .buttonStyle(.bordered)
+                            
+                            Button("New") {
+                                appState.activeSheet = .newArchive
+                            }
+                            .buttonStyle(.bordered)
+                            
+                            Button("Extract") {
+                                selectFolder()
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .disabled(manager.entries.isEmpty)
+                            
+                            if manager.isProcessing {
+                                ProgressView(value: manager.progress)
+                                    .frame(width: 80)
+                                Text("\(Int(manager.progress * 100))%")
+                                    .font(.caption)
+                            }
+                            
+                            Spacer()
+                        }
+                        .padding()
+                        
+                        Divider()
+                        
+                        // File list with selection and context menu
+                        List(selection: $manager.selectedIDs) {
+                            ForEach(manager.entries.filter { !$0.isSystemFile }) { entry in
+                                HStack {
+                                    Image(systemName: entry.isFolder ? "folder" : "doc")
+                                        .foregroundColor(entry.isFolder ? .yellow : .blue)
+                                    Text(entry.name)
+                                    Spacer()
+                                    if !entry.isFolder {
+                                        Text(entry.size)
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                                .tag(entry.id)
+                                .contextMenu {
+                                    Button("Delete") {
+                                        manager.removeFilesFromArchive(fileNames: [entry.name])
+                                    }
+                                    
+                                    if entry.isFolder {
+                                        Button("Extract Folder") {
+                                            selectFolderForExtraction(entryName: entry.name)
+                                        }
+                                    } else {
+                                        Button("Extract File") {
+                                            selectFolderForExtraction(entryName: entry.name)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        .listStyle(.inset)
+                        
+                        // 拖拽提示
+                        if manager.file != nil {
+                            Text("Drop files here to add to archive")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .padding(.vertical, 4)
+                                .frame(maxWidth: .infinity)
+                                .background(isTargeted ? Color.blue.opacity(0.1) : Color.clear)
                         }
                     }
-                    .listStyle(.inset)
+                    .onDrop(of: [.fileURL], isTargeted: $isTargeted) { providers in
+                        if manager.file != nil {
+                            return handleDropForAdd(providers: providers)
+                        }
+                        return false
+                    }
                 }
-            }
-            
-            // 底部按钮
-            HStack {
-                Spacer()
-                Button("Settings") {
-                    appState.activeSheet = .settings
-                }
-                .buttonStyle(.bordered)
                 
-                Spacer()
+                // 底部按钮
+                HStack {
+                    Spacer()
+                    Button("Settings") {
+                        appState.activeSheet = .settings
+                    }
+                    .buttonStyle(.bordered)
+                    
+                    Spacer()
+                }
+                .padding(.bottom, 10)
+                .padding(.top, 5)
+                .background(Color(NSColor.windowBackgroundColor).opacity(0.5))
             }
-            .padding(.bottom, 10)
-            .padding(.top, 5)
-            .background(Color(NSColor.windowBackgroundColor).opacity(0.5))
         }
         .alert(manager.error ?? "Done", isPresented: $manager.showAlert) {
             Button("OK") { }
@@ -833,7 +1355,7 @@ struct ContentView: View {
         ) { result in
             switch result {
             case .success(let url):
-                manager.listArchiveContents(url)
+                manager.listArchiveContents(url, recentFilesManager: recentFilesManager)
             case .failure:
                 break
             }
@@ -859,6 +1381,89 @@ struct ContentView: View {
             }
         }
     }
+    
+    func selectFolderForExtraction(entryName: String) {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.folder]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.canCreateDirectories = true
+        panel.title = "Select destination folder for \(entryName)"
+        panel.prompt = "Extract Here"
+        
+        panel.begin { response in
+            if response == .OK, let url = panel.url {
+                // 这里需要实现单个文件的提取逻辑
+                // 简化处理，先提示
+                DispatchQueue.main.async {
+                    self.manager.error = "Single file extraction coming soon"
+                    self.manager.showAlert = true
+                }
+            }
+        }
+    }
+    
+    func handleDrop(providers: [NSItemProvider]) -> Bool {
+        let group = DispatchGroup()
+        var urls: [URL] = []
+        
+        for provider in providers {
+            group.enter()
+            provider.loadItem(forTypeIdentifier: kUTTypeFileURL as String, options: nil) { (item, error) in
+                defer { group.leave() }
+                
+                if let data = item as? Data,
+                   let url = URL(dataRepresentation: data, relativeTo: nil) {
+                    urls.append(url)
+                }
+            }
+        }
+        
+        group.notify(queue: .main) {
+            if let firstURL = urls.first, urls.count == 1 {
+                // 单个文件，直接打开
+                if firstURL.pathExtension.lowercased() == "zip" ||
+                   firstURL.pathExtension.lowercased() == "7z" ||
+                   firstURL.pathExtension.lowercased() == "rar" ||
+                   firstURL.pathExtension.lowercased() == "tar" ||
+                   firstURL.pathExtension.lowercased() == "gz" {
+                    manager.listArchiveContents(firstURL, recentFilesManager: recentFilesManager)
+                }
+            }
+        }
+        
+        return true
+    }
+    
+    func handleDropForAdd(providers: [NSItemProvider]) -> Bool {
+        let group = DispatchGroup()
+        var urls: [URL] = []
+        
+        for provider in providers {
+            group.enter()
+            provider.loadItem(forTypeIdentifier: kUTTypeFileURL as String, options: nil) { (item, error) in
+                defer { group.leave() }
+                
+                if let data = item as? Data,
+                   let url = URL(dataRepresentation: data, relativeTo: nil) {
+                    urls.append(url)
+                }
+            }
+        }
+        
+        group.notify(queue: .main) {
+            if !urls.isEmpty {
+                manager.addFilesToArchive(files: urls)
+            }
+        }
+        
+        return true
+    }
+    
+    func formatFileSize(_ size: Int64) -> String {
+        ByteCountFormatter.string(fromByteCount: size, countStyle: .file)
+    }
 }
 
 // MARK: - Settings View
@@ -871,6 +1476,9 @@ struct SettingsView: View {
     @EnvironmentObject var languageManager: LanguageManager
     @Environment(\.dismiss) var dismiss
     @State private var tempLanguage: String
+    
+    // GitHub 链接
+    let githubURL = "https://github.com/HaoranisHaoran/Swift-Zip-Manager"
     
     init(selectedLanguage: Binding<String>, languages: [String: String], showRestartAlert: Binding<Bool>, appState: AppState, copyMessage: Binding<String>) {
         self._selectedLanguage = selectedLanguage
@@ -917,8 +1525,82 @@ struct SettingsView: View {
                     }
                     .buttonStyle(.bordered)
                 }
+                
+                // GitHub 链接部分
+                Section("About") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Image(systemName: "archivebox")
+                                .foregroundColor(.blue)
+                            
+                            Text("Swift Zip Manager")
+                                .font(.headline)
+                        }
+                        
+                        Text("Version 0.1.4 Alpha")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        Divider()
+                            .padding(.vertical, 4)
+                        
+                        HStack {
+                            Image(systemName: "star")
+                                .font(.caption)
+                                .foregroundColor(.yellow)
+                            
+                            Text("If you like this app, please star on GitHub")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        HStack {
+                            Image(systemName: "link.circle.fill")
+                                .font(.caption)
+                                .foregroundColor(.blue)
+                            
+                            Text(githubURL)
+                                .font(.caption)
+                                .foregroundColor(.blue)
+                                .underline()
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                                .onTapGesture {
+                                    if let url = URL(string: githubURL) {
+                                        NSWorkspace.shared.open(url)
+                                    }
+                                }
+                        }
+                        .padding(.top, 4)
+                        
+                        HStack {
+                            Image(systemName: "doc.on.clipboard")
+                                .font(.caption)
+                                .foregroundColor(.green)
+                            
+                            Text("Copy URL")
+                                .font(.caption)
+                                .foregroundColor(.green)
+                                .onTapGesture {
+                                    let pasteboard = NSPasteboard.general
+                                    pasteboard.clearContents()
+                                    pasteboard.setString(githubURL, forType: .string)
+                                    copyMessage = "GitHub URL copied to clipboard"
+                                    appState.showCommandCopied = true
+                                }
+                        }
+                        .padding(.top, 4)
+                        
+                        // 自定义提示
+                        Text("You can modify the GitHub URL in SettingsView")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                            .padding(.top, 2)
+                    }
+                    .padding(.vertical, 4)
+                }
             }
-            .frame(height: 200)
+            .frame(height: 350)
             .padding()
             
             HStack {
@@ -930,7 +1612,7 @@ struct SettingsView: View {
             }
             .padding(.bottom)
         }
-        .frame(width: 400, height: 350)
+        .frame(width: 450, height: 450)
         .padding()
     }
 }

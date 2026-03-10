@@ -11,7 +11,7 @@ struct SwiftZipManagerApp: App {
             ContentView()
                 .environmentObject(appState)
                 .environmentObject(languageManager)
-                .frame(minWidth: 700, minHeight: 450)
+                .frame(minWidth: 900, minHeight: 550)
                 .onReceive(NotificationCenter.default.publisher(for: .openArchive)) { _ in
                     NotificationCenter.default.post(name: .showOpenPanel, object: nil)
                 }

@@ -11,11 +11,11 @@ struct SwiftZipManagerApp: App {
             ContentView()
                 .environmentObject(appState)
                 .environmentObject(languageManager)
-                .frame(minWidth: 900, minHeight: 550)
-                .onReceive(NotificationCenter.default.publisher(for: .openArchive)) { _ in
-                    NotificationCenter.default.post(name: .showOpenPanel, object: nil)
+                .frame(minWidth: 900, minHeight: 600)
+                .onReceive(NotificationCenter.default.publisher(for: .openArchiveNotification)) { _ in
+                    NotificationCenter.default.post(name: .showOpenPanelNotification, object: nil)
                 }
-                .onReceive(NotificationCenter.default.publisher(for: .showHelp)) { _ in
+                .onReceive(NotificationCenter.default.publisher(for: .showHelpNotification)) { _ in
                     showHelp = true
                 }
                 .sheet(isPresented: $showHelp) {
@@ -23,33 +23,24 @@ struct SwiftZipManagerApp: App {
                 }
         }
         .commands {
-            // 替换系统的帮助菜单
             CommandGroup(replacing: .help) {
                 Button("Swift Zip Manager Help") {
-                    NotificationCenter.default.post(name: .showHelp, object: nil)
+                    NotificationCenter.default.post(name: .showHelpNotification, object: nil)
                 }
                 .keyboardShortcut("?", modifiers: .command)
             }
             
             CommandGroup(after: .newItem) {
                 Button("New Archive") {
-                    appState.activeSheet = .newArchive
+                    appState.showNewArchive = true
                 }
                 .keyboardShortcut("w", modifiers: .command)
                 
                 Button("Open Archive") {
-                    NotificationCenter.default.post(name: .openArchive, object: nil)
+                    NotificationCenter.default.post(name: .openArchiveNotification, object: nil)
                 }
                 .keyboardShortcut("o", modifiers: .command)
             }
         }
     }
-}
-
-// 通知名称扩展
-extension Notification.Name {
-    static let openArchive = Notification.Name("openArchive")
-    static let showOpenPanel = Notification.Name("showOpenPanel")
-    static let showHelp = Notification.Name("showHelp")
-    static let languageChanged = Notification.Name("languageChanged")
 }

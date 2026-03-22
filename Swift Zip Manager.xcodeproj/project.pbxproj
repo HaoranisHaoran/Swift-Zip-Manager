@@ -456,8 +456,8 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 12.3;
-				MARKETING_VERSION = 0.1.4;
+				MACOSX_DEPLOYMENT_TARGET = 12.4;
+				MARKETING_VERSION = "1.0.0-Beta.1";
 				PRODUCT_BUNDLE_IDENTIFIER = "com.haoran.Swift-Zip-Manager";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -488,8 +488,8 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 12.3;
-				MARKETING_VERSION = 0.1.4;
+				MACOSX_DEPLOYMENT_TARGET = 12.4;
+				MARKETING_VERSION = "1.0.0-Beta.1";
 				PRODUCT_BUNDLE_IDENTIFIER = "com.haoran.Swift-Zip-Manager";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;

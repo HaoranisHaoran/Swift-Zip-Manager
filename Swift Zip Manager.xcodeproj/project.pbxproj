@@ -13,6 +13,21 @@
 		AD12EED72F5AEC2500C0B791 /* Swift-Zip-ManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD12EED62F5AEC2500C0B791 /* Swift-Zip-ManagerTests.swift */; };
 		AD12EEE12F5AEC2500C0B791 /* Swift-Zip-ManagerUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD12EEE02F5AEC2500C0B791 /* Swift-Zip-ManagerUITests.swift */; };
 		AD12EEE32F5AEC2500C0B791 /* Swift-Zip-ManagerUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD12EEE22F5AEC2500C0B791 /* Swift-Zip-ManagerUITestsLaunchTests.swift */; };
+		ADB2AB5D2F7F881A0033BADF /* RecentFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADB2AB5C2F7F880D0033BADF /* RecentFile.swift */; };
+		ADB2AB5F2F7F88500033BADF /* FileItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADB2AB5E2F7F88410033BADF /* FileItem.swift */; };
+		ADB2AB612F7F88720033BADF /* ArchiveEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADB2AB602F7F88650033BADF /* ArchiveEntry.swift */; };
+		ADB2AB632F7F88920033BADF /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADB2AB622F7F88860033BADF /* AppState.swift */; };
+		ADB2AB652F7F88BA0033BADF /* LanguageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADB2AB642F7F889E0033BADF /* LanguageManager.swift */; };
+		ADB2AB672F7F88E70033BADF /* RecentFilesManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADB2AB662F7F88C80033BADF /* RecentFilesManager.swift */; };
+		ADB2AB692F7F890A0033BADF /* ToolInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADB2AB682F7F88FD0033BADF /* ToolInstaller.swift */; };
+		ADB2AB6B2F7F89280033BADF /* ArchiveManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADB2AB6A2F7F891C0033BADF /* ArchiveManager.swift */; };
+		ADB2AB6D2F7F89540033BADF /* VisualEffectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADB2AB6C2F7F893E0033BADF /* VisualEffectView.swift */; };
+		ADB2AB6F2F7F897E0033BADF /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADB2AB6E2F7F89710033BADF /* SidebarView.swift */; };
+		ADB2AB712F7F89C00033BADF /* RightContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADB2AB702F7F89AA0033BADF /* RightContentView.swift */; };
+		ADB2AB732F7F89F70033BADF /* ArchiveContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADB2AB722F7F89E70033BADF /* ArchiveContentView.swift */; };
+		ADB2AB752F7F8A240033BADF /* NewArchiveView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADB2AB742F7F8A160033BADF /* NewArchiveView.swift */; };
+		ADB2AB772F7F8A400033BADF /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADB2AB762F7F8A310033BADF /* SettingsView.swift */; };
+		ADB2AB792F7F8A790033BADF /* HelpView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADB2AB782F7F8A610033BADF /* HelpView.swift */; };
 		ADCA13DC2F5BE849000E5D59 /* Swift-Zip-ManagerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADCA13DB2F5BE849000E5D59 /* Swift-Zip-ManagerApp.swift */; };
 /* End PBXBuildFile section */
 
@@ -45,6 +60,21 @@
 		AD12EEE02F5AEC2500C0B791 /* Swift-Zip-ManagerUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Swift-Zip-ManagerUITests.swift"; sourceTree = "<group>"; };
 		AD12EEE22F5AEC2500C0B791 /* Swift-Zip-ManagerUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Swift-Zip-ManagerUITestsLaunchTests.swift"; sourceTree = "<group>"; };
 		AD12EEF22F5B0E8300C0B791 /* Swift-Zip-Manager-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "Swift-Zip-Manager-Info.plist"; sourceTree = SOURCE_ROOT; };
+		ADB2AB5C2F7F880D0033BADF /* RecentFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentFile.swift; sourceTree = "<group>"; };
+		ADB2AB5E2F7F88410033BADF /* FileItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileItem.swift; sourceTree = "<group>"; };
+		ADB2AB602F7F88650033BADF /* ArchiveEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArchiveEntry.swift; sourceTree = "<group>"; };
+		ADB2AB622F7F88860033BADF /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		ADB2AB642F7F889E0033BADF /* LanguageManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LanguageManager.swift; sourceTree = "<group>"; };
+		ADB2AB662F7F88C80033BADF /* RecentFilesManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentFilesManager.swift; sourceTree = "<group>"; };
+		ADB2AB682F7F88FD0033BADF /* ToolInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolInstaller.swift; sourceTree = "<group>"; };
+		ADB2AB6A2F7F891C0033BADF /* ArchiveManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArchiveManager.swift; sourceTree = "<group>"; };
+		ADB2AB6C2F7F893E0033BADF /* VisualEffectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualEffectView.swift; sourceTree = "<group>"; };
+		ADB2AB6E2F7F89710033BADF /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
+		ADB2AB702F7F89AA0033BADF /* RightContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RightContentView.swift; sourceTree = "<group>"; };
+		ADB2AB722F7F89E70033BADF /* ArchiveContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArchiveContentView.swift; sourceTree = "<group>"; };
+		ADB2AB742F7F8A160033BADF /* NewArchiveView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewArchiveView.swift; sourceTree = "<group>"; };
+		ADB2AB762F7F8A310033BADF /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		ADB2AB782F7F8A610033BADF /* HelpView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelpView.swift; sourceTree = "<group>"; };
 		ADCA13DB2F5BE849000E5D59 /* Swift-Zip-ManagerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Swift-Zip-ManagerApp.swift"; sourceTree = "<group>"; usesTabs = 0; };
 /* End PBXFileReference section */
 
@@ -96,6 +126,10 @@
 		AD12EEC32F5AEC2200C0B791 /* Swift Zip Manager */ = {
 			isa = PBXGroup;
 			children = (
+				ADB2AB5B2F7F87DD0033BADF /* Utils */,
+				ADB2AB5A2F7F87D00033BADF /* Views */,
+				ADB2AB592F7F87C20033BADF /* Managers */,
+				ADB2AB582F7F87B30033BADF /* Models */,
 				AD12EEF22F5B0E8300C0B791 /* Swift-Zip-Manager-Info.plist */,
 				AD12EEC62F5AEC2200C0B791 /* ContentView.swift */,
 				AD12EEC82F5AEC2400C0B791 /* Assets.xcassets */,
@@ -129,6 +163,49 @@
 				AD12EEE22F5AEC2500C0B791 /* Swift-Zip-ManagerUITestsLaunchTests.swift */,
 			);
 			path = "Swift Zip ManagerUITests";
+			sourceTree = "<group>";
+		};
+		ADB2AB582F7F87B30033BADF /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				ADB2AB602F7F88650033BADF /* ArchiveEntry.swift */,
+				ADB2AB5E2F7F88410033BADF /* FileItem.swift */,
+				ADB2AB5C2F7F880D0033BADF /* RecentFile.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		ADB2AB592F7F87C20033BADF /* Managers */ = {
+			isa = PBXGroup;
+			children = (
+				ADB2AB6A2F7F891C0033BADF /* ArchiveManager.swift */,
+				ADB2AB682F7F88FD0033BADF /* ToolInstaller.swift */,
+				ADB2AB662F7F88C80033BADF /* RecentFilesManager.swift */,
+				ADB2AB642F7F889E0033BADF /* LanguageManager.swift */,
+				ADB2AB622F7F88860033BADF /* AppState.swift */,
+			);
+			path = Managers;
+			sourceTree = "<group>";
+		};
+		ADB2AB5A2F7F87D00033BADF /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				ADB2AB782F7F8A610033BADF /* HelpView.swift */,
+				ADB2AB762F7F8A310033BADF /* SettingsView.swift */,
+				ADB2AB742F7F8A160033BADF /* NewArchiveView.swift */,
+				ADB2AB722F7F89E70033BADF /* ArchiveContentView.swift */,
+				ADB2AB702F7F89AA0033BADF /* RightContentView.swift */,
+				ADB2AB6E2F7F89710033BADF /* SidebarView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		ADB2AB5B2F7F87DD0033BADF /* Utils */ = {
+			isa = PBXGroup;
+			children = (
+				ADB2AB6C2F7F893E0033BADF /* VisualEffectView.swift */,
+			);
+			path = Utils;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -197,7 +274,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1400;
-				LastUpgradeCheck = 1420;
+				LastUpgradeCheck = 2630;
 				TargetAttributes = {
 					AD12EEC02F5AEC2200C0B791 = {
 						CreatedOnToolsVersion = 14.0.1;
@@ -219,19 +296,6 @@
 			knownRegions = (
 				en,
 				Base,
-				"zh-Hans",
-				"zh-Hant",
-				fr,
-				es,
-				de,
-				ja,
-				ko,
-				ru,
-				it,
-				"pt-BR",
-				nl,
-				sv,
-				da,
 			);
 			mainGroup = AD12EEB82F5AEC2200C0B791;
 			packageReferences = (
@@ -278,7 +342,22 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				ADB2AB712F7F89C00033BADF /* RightContentView.swift in Sources */,
+				ADB2AB5F2F7F88500033BADF /* FileItem.swift in Sources */,
+				ADB2AB652F7F88BA0033BADF /* LanguageManager.swift in Sources */,
+				ADB2AB732F7F89F70033BADF /* ArchiveContentView.swift in Sources */,
+				ADB2AB6B2F7F89280033BADF /* ArchiveManager.swift in Sources */,
+				ADB2AB692F7F890A0033BADF /* ToolInstaller.swift in Sources */,
+				ADB2AB792F7F8A790033BADF /* HelpView.swift in Sources */,
+				ADB2AB672F7F88E70033BADF /* RecentFilesManager.swift in Sources */,
+				ADB2AB6F2F7F897E0033BADF /* SidebarView.swift in Sources */,
 				AD12EEC72F5AEC2200C0B791 /* ContentView.swift in Sources */,
+				ADB2AB772F7F8A400033BADF /* SettingsView.swift in Sources */,
+				ADB2AB6D2F7F89540033BADF /* VisualEffectView.swift in Sources */,
+				ADB2AB5D2F7F881A0033BADF /* RecentFile.swift in Sources */,
+				ADB2AB632F7F88920033BADF /* AppState.swift in Sources */,
+				ADB2AB752F7F8A240033BADF /* NewArchiveView.swift in Sources */,
+				ADB2AB612F7F88720033BADF /* ArchiveEntry.swift in Sources */,
 				ADCA13DC2F5BE849000E5D59 /* Swift-Zip-ManagerApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -352,8 +431,10 @@
 				COPY_PHASE_STRIP = NO;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = MVKBMZMN48;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -373,6 +454,7 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
@@ -414,8 +496,10 @@
 				COPY_PHASE_STRIP = NO;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = MVKBMZMN48;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -428,6 +512,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 			};
@@ -445,7 +530,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_ASSET_PATHS = "\"Swift Zip Manager/Preview Content\"";
-				DEVELOPMENT_TEAM = MVKBMZMN48;
+				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -456,8 +541,8 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 12.4;
-				MARKETING_VERSION = "1.0.0-Beta.1";
+				MACOSX_DEPLOYMENT_TARGET = 13.5;
+				MARKETING_VERSION = "1.0.0-Beta.2";
 				PRODUCT_BUNDLE_IDENTIFIER = "com.haoran.Swift-Zip-Manager";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -477,7 +562,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_ASSET_PATHS = "\"Swift Zip Manager/Preview Content\"";
-				DEVELOPMENT_TEAM = MVKBMZMN48;
+				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -488,8 +573,8 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 12.4;
-				MARKETING_VERSION = "1.0.0-Beta.1";
+				MACOSX_DEPLOYMENT_TARGET = 13.5;
+				MARKETING_VERSION = "1.0.0-Beta.2";
 				PRODUCT_BUNDLE_IDENTIFIER = "com.haoran.Swift-Zip-Manager";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -500,12 +585,10 @@
 		AD12EEEA2F5AEC2500C0B791 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
-				DEVELOPMENT_TEAM = MVKBMZMN48;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 12.3;
 				MARKETING_VERSION = 1.0;
@@ -520,12 +603,10 @@
 		AD12EEEB2F5AEC2500C0B791 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
-				DEVELOPMENT_TEAM = MVKBMZMN48;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 12.3;
 				MARKETING_VERSION = 1.0;
@@ -540,11 +621,9 @@
 		AD12EEED2F5AEC2500C0B791 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
-				DEVELOPMENT_TEAM = MVKBMZMN48;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.haoran.Swift-Zip-ManagerUITests";
@@ -558,11 +637,9 @@
 		AD12EEEE2F5AEC2500C0B791 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
-				DEVELOPMENT_TEAM = MVKBMZMN48;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.haoran.Swift-Zip-ManagerUITests";
@@ -583,7 +660,7 @@
 				AD12EEE52F5AEC2500C0B791 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Debug;
+			defaultConfigurationName = Release;
 		};
 		AD12EEE62F5AEC2500C0B791 /* Build configuration list for PBXNativeTarget "Swift Zip Manager" */ = {
 			isa = XCConfigurationList;
@@ -592,7 +669,7 @@
 				AD12EEE82F5AEC2500C0B791 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Debug;
+			defaultConfigurationName = Release;
 		};
 		AD12EEE92F5AEC2500C0B791 /* Build configuration list for PBXNativeTarget "Swift Zip ManagerTests" */ = {
 			isa = XCConfigurationList;
@@ -601,7 +678,7 @@
 				AD12EEEB2F5AEC2500C0B791 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Debug;
+			defaultConfigurationName = Release;
 		};
 		AD12EEEC2F5AEC2500C0B791 /* Build configuration list for PBXNativeTarget "Swift Zip ManagerUITests" */ = {
 			isa = XCConfigurationList;
@@ -610,7 +687,7 @@
 				AD12EEEE2F5AEC2500C0B791 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Debug;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};

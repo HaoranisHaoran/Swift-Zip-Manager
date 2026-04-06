@@ -112,7 +112,7 @@ class ArchiveManager: ObservableObject {
                 
                 switch ext {
                 case "zip":
-                    process.executableURL = URL(fileURLWithPath: "/usr/bin/uzip")
+                    process.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")
                     args = ["-o", source.path, "-d", target.path]
                     
                 case "tar", "gz", "tgz":

@@ -34,7 +34,7 @@ struct SwiftZipManagerApp: App {
                 Button("New Archive") {
                     appState.showNewArchive = true
                 }
-                .keyboardShortcut("w", modifiers: .command)
+                .keyboardShortcut("n", modifiers: .command)
                 
                 Button("Open Archive") {
                     NotificationCenter.default.post(name: .openArchiveNotification, object: nil)

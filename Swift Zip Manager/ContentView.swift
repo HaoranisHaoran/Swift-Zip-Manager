@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ContentView: View {
-    @EnvironmentObject var appState: AppState
+    @StateObject private var appState = AppState()
     @StateObject private var languageManager = LanguageManager()
     @StateObject private var manager = ArchiveManager()
     @StateObject private var recentManager = RecentFilesManager()
@@ -54,13 +54,17 @@ struct ContentView: View {
             }
             Button("Later", role: .cancel) { }
         } message: {
-            Text("The following tools are required:\n• \(missingTools.joined(separator: "\n• "))")
+            Text("This app requires additional tools for archive operations:\n\n• 7zz: Universal extractor (supports ZIP, RAR, 7Z, TAR, etc.)\n• rar: RAR compression only\n\nClick Install to download and set up these tools.")
         }
     }
     
     func installTools() {
         toolInstaller.installTools(missingTools, progress: { _, _ in }, completion: { success, message in
-            manager.error = success ? "Tools installed. Restart app." : "Install failed: \(message)"
+            if success {
+                manager.error = "Tools installed. Please restart the app."
+            } else {
+                manager.error = "Install failed: \(message)"
+            }
             manager.showAlert = true
         })
     }

@@ -13,6 +13,8 @@ struct SettingsView: View {
     @State private var showInstallAlert = false
     @State private var installProgress: Double = 0
     @State private var isInstalling = false
+    @State private var installMessage = ""
+    @State private var showDeleteConfirm = false
     
     let languages = [
         "en": "English",
@@ -47,7 +49,6 @@ struct SettingsView: View {
                 .padding(.top)
             
             Form {
-                // 语言选择
                 Section("Language") {
                     Picker("Display Language", selection: $tempLanguage) {
                         ForEach(languages.keys.sorted(), id: \.self) { code in
@@ -58,39 +59,67 @@ struct SettingsView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 
-                // 工具检查与安装
                 Section("Tools") {
-                    HStack {
-                        Text("Status:")
-                        Spacer()
-                        if isInstalling {
-                            ProgressView(value: installProgress)
-                                .progressViewStyle(.linear)
-                                .frame(width: 150)
-                        } else if isChecking {
-                            ProgressView()
-                                .controlSize(.small)
-                        } else {
-                            let missing = toolInstaller.checkTools()
-                            if missing.isEmpty {
-                                Text("All tools installed")
-                                    .foregroundColor(.green)
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text("Status:")
+                            Spacer()
+                            if isInstalling {
+                                VStack(alignment: .trailing, spacing: 4) {
+                                    ProgressView(value: installProgress)
+                                        .progressViewStyle(.linear)
+                                        .frame(width: 150)
+                                    if !installMessage.isEmpty {
+                                        Text(installMessage)
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                            } else if isChecking {
+                                ProgressView()
+                                    .controlSize(.small)
                             } else {
-                                Text("\(missing.count) tools missing")
-                                    .foregroundColor(.orange)
+                                let missing = toolInstaller.checkTools()
+                                if missing.isEmpty {
+                                    Text("All tools installed ✓")
+                                        .foregroundColor(.green)
+                                } else {
+                                    VStack(alignment: .trailing, spacing: 2) {
+                                        Text("\(missing.count) tools missing")
+                                            .foregroundColor(.orange)
+                                        ForEach(missing, id: \.self) { tool in
+                                            Text(tool)
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                        }
+                                    }
+                                }
                             }
                         }
+                        .padding(.vertical, 4)
+                        
+                        HStack(spacing: 12) {
+                            Button(isInstalling ? "Installing..." : "Install 7zz & RAR Tools") {
+                                checkAndInstall()
+                            }
+                            .buttonStyle(.bordered)
+                            .disabled(isInstalling || isChecking)
+                            
+                            Button("Delete Tools") {
+                                showDeleteConfirm = true
+                            }
+                            .buttonStyle(.bordered)
+                            .foregroundColor(.red)
+                            .disabled(isInstalling || isChecking)
+                        }
+                        
+                        Text("7zz: Universal extractor (ZIP, RAR, 7Z, TAR, etc.)\nRAR: RAR compression and extraction")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .padding(.top, 4)
                     }
-                    .padding(.vertical, 4)
-                    
-                    Button(isInstalling ? "Installing..." : "Check & Install Tools") {
-                        checkAndInstall()
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(isInstalling || isChecking)
                 }
                 
-                // 关于
                 Section("About") {
                     HStack {
                         Image(systemName: "archivebox")
@@ -98,7 +127,7 @@ struct SettingsView: View {
                         Text("Swift Zip Manager")
                             .font(.headline)
                     }
-                    Text("Version 1.0.0 Beta 2")
+                    Text("Version 1.0.0 Beta 3")
                         .font(.caption)
                         .foregroundColor(.secondary)
                     Divider()
@@ -119,7 +148,7 @@ struct SettingsView: View {
                 }
             }
             .formStyle(.grouped)
-            .frame(height: 380)
+            .frame(height: 460)
             
             HStack {
                 Button("Apply") {
@@ -139,7 +168,7 @@ struct SettingsView: View {
             }
             .padding(.bottom)
         }
-        .frame(width: 500, height: 520)
+        .frame(width: 500, height: 600)
         .alert("Language Changed", isPresented: $showRestartAlert) {
             Button("Restart Now") {
                 exit(0)
@@ -156,6 +185,14 @@ struct SettingsView: View {
         } message: {
             Text("The following tools are required:\n• \(missingTools.joined(separator: "\n• "))")
         }
+        .alert("Delete Tools", isPresented: $showDeleteConfirm) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                deleteTools()
+            }
+        } message: {
+            Text("Are you sure you want to delete 7zz and RAR tools?\n\nYou will need to reinstall them to use archive features.")
+        }
     }
     
     func checkAndInstall() {
@@ -168,7 +205,6 @@ struct SettingsView: View {
                     missingTools = missing
                     showInstallAlert = true
                 } else {
-                    // 所有工具已安装
                     let alert = NSAlert()
                     alert.messageText = "Tools Status"
                     alert.informativeText = "All required tools are already installed."
@@ -189,6 +225,7 @@ struct SettingsView: View {
             progress: { progress, message in
                 DispatchQueue.main.async {
                     installProgress = progress
+                    installMessage = message
                 }
             },
             completion: { success, message in
@@ -197,7 +234,7 @@ struct SettingsView: View {
                     if success {
                         let alert = NSAlert()
                         alert.messageText = "Installation Complete"
-                        alert.informativeText = "Tools installed successfully. Please restart the app for changes to take effect."
+                        alert.informativeText = "Tools installed successfully to ~/Library/Application Support/SwiftZipManager/tools/\n\nPlease restart the app for changes to take effect."
                         alert.alertStyle = .informational
                         alert.addButton(withTitle: "Restart Now")
                         alert.addButton(withTitle: "Later")
@@ -215,5 +252,26 @@ struct SettingsView: View {
                 }
             }
         )
+    }
+    
+    func deleteTools() {
+        let success = toolInstaller.deleteTools()
+        
+        let alert = NSAlert()
+        if success {
+            alert.messageText = "Tools Deleted"
+            alert.informativeText = "7zz and RAR tools have been removed from ~/Library/Application Support/SwiftZipManager/tools/\n\nPlease restart the app."
+            alert.alertStyle = .informational
+        } else {
+            alert.messageText = "Delete Failed"
+            alert.informativeText = "Failed to delete tools. They may have already been removed or are in use."
+            alert.alertStyle = .warning
+        }
+        alert.addButton(withTitle: "Restart Now")
+        alert.addButton(withTitle: "Later")
+        
+        if alert.runModal() == .alertFirstButtonReturn {
+            exit(0)
+        }
     }
 }

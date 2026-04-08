@@ -16,8 +16,18 @@ class ArchiveManager: ObservableObject {
         ["zip": "zip", "tar": "tar", "gz": "tar.gz", "7z": "7z", "rar": "rar"][format] ?? "zip"
     }
     
+    private func getAppSupportPath() -> String {
+        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        let appFolder = appSupport.appendingPathComponent("SwiftZipManager")
+        return appFolder.path
+    }
+    
     func findCommand(_ command: String) -> String? {
-        let paths = ["/usr/local/bin/\(command)", "/opt/homebrew/bin/\(command)", "/usr/bin/\(command)"]
+        #if arch(arm64)
+            let paths = ["/opt/local/bin/\(command)"]
+        #else
+            let paths = ["/usr/local/bin/\(command)"]
+        #endif
         return paths.first { FileManager.default.fileExists(atPath: $0) }
     }
     
@@ -30,35 +40,26 @@ class ArchiveManager: ObservableObject {
         var args: [String] = []
         
         switch ext {
-        case "zip":
-            process.executableURL = URL(fileURLWithPath: "/usr/bin/zipinfo")
-            args = [url.path]
+        case "zip", "7z", "rar":
+            guard let sevenzzPath = findCommand("7zz") else {
+                DispatchQueue.main.async {
+                    self.error = "7zz not found. Please install 7zz first"
+                    self.showAlert = true
+                }
+                return
+            }
+            process.executableURL = URL(fileURLWithPath: sevenzzPath)
+            args = ["l", url.path]
+            
         case "tar", "gz", "tgz":
             process.executableURL = URL(fileURLWithPath: "/usr/bin/tar")
             args = ["tf", url.path]
-        case "7z":
-            guard let path = findCommand("7z") else {
-                error = "7z not found. Please install p7zip"
-                showAlert = true
-                return
-            }
-            process.executableURL = URL(fileURLWithPath: path)
-            args = ["l", url.path]
-        case "rar":
-            if let path = findCommand("urar") {
-                process.executableURL = URL(fileURLWithPath: path)
-                args = ["t", url.path]
-            } else if let path = findCommand("unrar") {
-                process.executableURL = URL(fileURLWithPath: path)
-                args = ["lb", url.path]
-            } else {
-                error = "unar not found. Please install unar"
-                showAlert = true
-                return
-            }
+            
         default:
-            error = "Unsupported format"
-            showAlert = true
+            DispatchQueue.main.async {
+                self.error = "Unsupported format"
+                self.showAlert = true
+            }
             return
         }
         
@@ -67,31 +68,51 @@ class ArchiveManager: ObservableObject {
         process.standardOutput = pipe
         process.standardError = Pipe()
         
-        do {
-            try process.run()
-            process.waitUntilExit()
-            let output = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-            
-            var list: [ArchiveEntry] = []
-            for line in output.split(separator: "\n") {
-                let trimmed = line.trimmingCharacters(in: .whitespaces)
-                if !trimmed.isEmpty && !trimmed.hasPrefix("Archive:") {
-                    var fileName = trimmed
-                    if ext == "rar" {
-                        let components = trimmed.split(separator: " ", maxSplits: 1)
-                        if components.count == 2 {
-                            fileName = String(components[1])
+        DispatchQueue.global(qos: .userInitiated).async {
+            do {
+                try process.run()
+                process.waitUntilExit()
+                let output = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+                
+                var list: [ArchiveEntry] = []
+                let lines = output.split(separator: "\n")
+                
+                for line in lines {
+                    let trimmed = line.trimmingCharacters(in: .whitespaces)
+                    if trimmed.isEmpty { continue }
+                    
+                    if ext == "zip" || ext == "7z" || ext == "rar" {
+                        let components = trimmed.split(separator: " ", maxSplits: 3)
+                        if components.count >= 4 {
+                            let size = String(components[2])
+                            var fileName = String(components[3])
+                            let isFolder = fileName.hasSuffix("/")
+                            if isFolder {
+                                fileName = String(fileName.dropLast())
+                            }
+                            if !fileName.isEmpty && fileName != "." && fileName != ".." {
+                                list.append(ArchiveEntry(name: fileName, size: size, isFolder: isFolder))
+                            }
+                        }
+                    } else {
+                        let isFolder = trimmed.hasSuffix("/")
+                        let fileName = isFolder ? String(trimmed.dropLast()) : trimmed
+                        if !fileName.isEmpty && fileName != "." && fileName != ".." {
+                            list.append(ArchiveEntry(name: fileName, size: "--", isFolder: isFolder))
                         }
                     }
-                    let isFolder = fileName.hasSuffix("/")
-                    list.append(ArchiveEntry(name: fileName, size: "--", isFolder: isFolder))
+                }
+                
+                DispatchQueue.main.async {
+                    self.entries = list.filter { !$0.isSystemFile }
+                    self.selectedArchiveIDs.removeAll()
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    self.error = error.localizedDescription
+                    self.showAlert = true
                 }
             }
-            entries = list.filter { !$0.isSystemFile }
-            selectedArchiveIDs.removeAll()
-        } catch {
-            self.error = error.localizedDescription
-            showAlert = true
         }
     }
     
@@ -100,10 +121,12 @@ class ArchiveManager: ObservableObject {
         let target = destination.appendingPathComponent(source.deletingPathExtension().lastPathComponent)
         let ext = source.pathExtension.lowercased()
         
-        isProcessing = true
-        progress = 0
+        DispatchQueue.main.async {
+            self.isProcessing = true
+            self.progress = 0
+        }
         
-        DispatchQueue.global().async {
+        DispatchQueue.global(qos: .userInitiated).async {
             do {
                 try FileManager.default.createDirectory(at: target, withIntermediateDirectories: true)
                 
@@ -111,35 +134,19 @@ class ArchiveManager: ObservableObject {
                 var args: [String] = []
                 
                 switch ext {
-                case "zip":
-                    process.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")
-                    args = ["-o", source.path, "-d", target.path]
+                case "zip", "7z", "rar":
+                    guard let sevenzzPath = self.findCommand("7zz") else {
+                        throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "7zz not found"])
+                    }
+                    process.executableURL = URL(fileURLWithPath: sevenzzPath)
+                    args = ["x", source.path, "-o" + target.path, "-y"]
                     
                 case "tar", "gz", "tgz":
                     process.executableURL = URL(fileURLWithPath: "/usr/bin/tar")
                     args = ["-xf", source.path, "-C", target.path]
                     
-                case "7z":
-                    guard let path = self.findCommand("7z") else {
-                        throw NSError(domain: "", code: -1)
-                    }
-                    process.executableURL = URL(fileURLWithPath: path)
-                    args = ["x", source.path, "-o" + target.path, "-y"]
-                    
-                case "rar":
-                    if let path = self.findCommand("unar") {
-                        process.executableURL = URL(fileURLWithPath: path)
-                        try FileManager.default.createDirectory(at: target, withIntermediateDirectories: true)
-                        args = ["-o", target.path, source.path]
-                    } else if let path = self.findCommand("unrar") {
-                        process.executableURL = URL(fileURLWithPath: path)
-                        args = ["x", source.path, target.path]
-                    } else {
-                        throw NSError(domain: "", code: -1)
-                    }
-                    
                 default:
-                    throw NSError(domain: "", code: -1)
+                    throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Unsupported format"])
                 }
                 
                 process.arguments = args
@@ -149,18 +156,20 @@ class ArchiveManager: ObservableObject {
                 try process.run()
                 process.waitUntilExit()
                 
+                DispatchQueue.main.async {
+                    self.isProcessing = false
+                    self.progress = 1.0
+                }
+                
                 if process.terminationStatus == 0 {
                     DispatchQueue.main.async {
-                        self.isProcessing = false
-                        self.progress = 1.0
-                        self.error = "Extraction complete"
+                        self.error = "Extraction complete: \(source.lastPathComponent)"
                         self.showAlert = true
                     }
                 } else {
                     let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
                     let errorMsg = String(data: errorData, encoding: .utf8) ?? "Unknown error"
                     DispatchQueue.main.async {
-                        self.isProcessing = false
                         self.error = "Extraction failed: \(errorMsg)"
                         self.showAlert = true
                     }
@@ -177,19 +186,26 @@ class ArchiveManager: ObservableObject {
     
     func createArchive(files: [URL], format: String, name: String, destination: URL) {
         if format == "rar" && findCommand("rar") == nil {
-            error = "rar not found. Please install rar"
-            showAlert = true
-            return
-        }
-        if format == "7z" && findCommand("7z") == nil {
-            error = "7z not found. Please install p7zip"
-            showAlert = true
+            DispatchQueue.main.async {
+                self.error = "rar not found. Please install RAR from RARLAB first"
+                self.showAlert = true
+            }
             return
         }
         
-        isProcessing = true
+        if format == "7z" && findCommand("7zz") == nil {
+            DispatchQueue.main.async {
+                self.error = "7zz not found. Please install 7zz first"
+                self.showAlert = true
+            }
+            return
+        }
         
-        DispatchQueue.global().async {
+        DispatchQueue.main.async {
+            self.isProcessing = true
+        }
+        
+        DispatchQueue.global(qos: .userInitiated).async {
             do {
                 let ext = self.getExtension(for: format)
                 let fileName = name.hasSuffix(".\(ext)") ? name : "\(name).\(ext)"
@@ -199,7 +215,8 @@ class ArchiveManager: ObservableObject {
                 try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
                 
                 for file in files {
-                    try FileManager.default.copyItem(at: file, to: tempDir.appendingPathComponent(file.lastPathComponent))
+                    let destURL = tempDir.appendingPathComponent(file.lastPathComponent)
+                    try FileManager.default.copyItem(at: file, to: destURL)
                 }
                 
                 let process = Process()
@@ -212,20 +229,31 @@ class ArchiveManager: ObservableObject {
                     let fileList = try FileManager.default.contentsOfDirectory(at: tempDir, includingPropertiesForKeys: nil)
                     args.append(contentsOf: fileList.map { $0.lastPathComponent })
                     process.currentDirectoryURL = tempDir
+                    
                 case "tar":
                     process.executableURL = URL(fileURLWithPath: "/usr/bin/tar")
                     args = ["-cf", targetPath, "-C", tempDir.path, "."]
+                    
                 case "gz":
                     process.executableURL = URL(fileURLWithPath: "/usr/bin/tar")
                     args = ["-czf", targetPath, "-C", tempDir.path, "."]
+                    
                 case "7z":
-                    process.executableURL = URL(fileURLWithPath: self.findCommand("7z")!)
-                    args = ["a", targetPath, "-r", "."]
+                    guard let sevenzzPath = self.findCommand("7zz") else {
+                        throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "7zz not found"])
+                    }
+                    process.executableURL = URL(fileURLWithPath: sevenzzPath)
+                    args = ["a", targetPath, "."]
                     process.currentDirectoryURL = tempDir
+                    
                 case "rar":
-                    process.executableURL = URL(fileURLWithPath: self.findCommand("rar")!)
+                    guard let rarPath = self.findCommand("rar") else {
+                        throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "rar not found"])
+                    }
+                    process.executableURL = URL(fileURLWithPath: rarPath)
                     args = ["a", "-r", targetPath, "."]
                     process.currentDirectoryURL = tempDir
+                    
                 default:
                     break
                 }
@@ -237,8 +265,13 @@ class ArchiveManager: ObservableObject {
                 
                 DispatchQueue.main.async {
                     self.isProcessing = false
-                    self.error = "Archive created: \(fileName)"
-                    self.showAlert = true
+                    if process.terminationStatus == 0 {
+                        self.error = "Archive created: \(fileName)"
+                        self.showAlert = true
+                    } else {
+                        self.error = "Failed to create archive"
+                        self.showAlert = true
+                    }
                 }
             } catch {
                 DispatchQueue.main.async {

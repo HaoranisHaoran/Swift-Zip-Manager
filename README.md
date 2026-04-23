@@ -32,6 +32,7 @@ HaoranisHaoran(HaoranTech)
 （详情请见Releases）
 
 💻 其他版本
+
 C# Zip Manager（Swift Zip Manager的衍生产品，正在开发中）
 
 🔗 下载

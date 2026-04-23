@@ -1,5 +1,5 @@
 # Swift-Zip-Manager
-一个用 Swift 写的压缩文件管理器，极致简洁，仅 899 KB。
+一个用 Swift 写的压缩文件管理器，极致简洁，仅 994 KB。
 
 ✨ 功能
 
@@ -10,12 +10,12 @@
 · 语言界面（14 种语言，正在开发中）
 · 工具一键安装
 · 帮助系统 + 快捷键支持
-
+. 可实现自动更新（GitHub API）
 📱 平台
 
 · macOS 13.5+
 
-📦 体积:889 KB（比一张截图还小）
+📦 体积:994 KB（比一张截图还小）
 
 🗓️ 版本计划
 
@@ -29,8 +29,11 @@ HaoranisHaoran(HaoranTech)
 
 📜 历史版本
 
-（详细请见Releases）
+（详情请见Releases）
+
+💻 其他版本
+C# Zip Manager（Swift Zip Manager的衍生产品，正在开发中）
 
 🔗 下载
 
-GitHub Releases 页面提供 .dmg 安装包
+GitHub Releases 页面提供 .dmg 安装bao

@@ -6,7 +6,7 @@ class LanguageManager: ObservableObject {
         didSet {
             UserDefaults.standard.set([currentLanguage], forKey: "AppleLanguages")
             UserDefaults.standard.synchronize()
-            NotificationCenter.default.post(name: .languageChangedNotification, object: nil)
+            NotificationCenter.default.post(name: .languageChanged, object: nil)
         }
     }
     
@@ -17,4 +17,13 @@ class LanguageManager: ObservableObject {
             currentLanguage = Locale.current.language.languageCode?.identifier ?? "en"
         }
     }
+}
+
+// MARK: - 通知扩展
+extension Notification.Name {
+    static let languageChanged = Notification.Name("languageChangedNotification")
+    static let openArchive = Notification.Name("openArchiveNotification")
+    static let showOpenPanel = Notification.Name("showOpenPanelNotification")
+    static let showHelp = Notification.Name("showHelpNotification")
+    static let checkForUpdates = Notification.Name("checkForUpdatesNotification")
 }

@@ -103,7 +103,7 @@ struct HelpView: View {
                 .padding(.top, 10)
             
             HStack {
-                Text("Version 1.0.0 Beta 2")
+                Text("Version 1.0.0 Beta 4")
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .padding(.leading, 16)

@@ -6,12 +6,12 @@ class AppState: ObservableObject {
     @Published var showSettings = false
     @Published var showTools = false
     @Published var showCommandCopied = false
-}
-
-// MARK: - 通知名称扩展
-extension Notification.Name {
-    static let openArchiveNotification = Notification.Name("openArchiveNotification")
-    static let showOpenPanelNotification = Notification.Name("showOpenPanelNotification")
-    static let showHelpNotification = Notification.Name("showHelpNotification")
-    static let languageChangedNotification = Notification.Name("languageChangedNotification")
+    @Published var showCloseConfirmation = false
+    
+    // 关闭当前窗口
+    func closeCurrentWindow() {
+        if let window = NSApplication.shared.keyWindow {
+            window.close()
+        }
+    }
 }

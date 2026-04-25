@@ -11,6 +11,7 @@
 · 工具一键安装
 · 帮助系统 + 快捷键支持
 . 可实现自动更新（GitHub API）
+
 📱 平台
 
 · macOS 13.5+
@@ -37,4 +38,4 @@ C# Zip Manager（Swift Zip Manager的衍生产品，正在开发中）
 
 🔗 下载
 
-GitHub Releases 页面提供 .dmg 安装bao
+GitHub Releases 页面提供 .dmg 安装包

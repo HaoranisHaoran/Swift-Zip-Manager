@@ -1,0 +1,27 @@
+# Xcode
+xcuserdata/
+*.xcworkspace
+*.xcodeproj/xcuserdata/
+DerivedData/
+
+# CocoaPods
+Pods/
+Podfile.lock
+
+# Swift Package Manager
+.build/
+Packages/
+
+# 敏感文件（根据实际情况修改）
+*.xcconfig
+GoogleService-Info.plist
+*Credentials.swift
+secrets.plist
+
+# 系统文件
+.DS_Store
+*.log
+
+# 编译产物
+*.ipa
+*.dSYM.zip
